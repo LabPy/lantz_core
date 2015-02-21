@@ -51,7 +51,7 @@ class InstrumentSigleton(HasFeaturesMeta):
 
 
 class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
-    """ Base class of all instrument drivers in Eapii.
+    """ Base class of all instrument drivers in Lantz.
 
     This class defines the common interface drivers are expected to implement
     and take care of keeping a single instance for each set of connection
