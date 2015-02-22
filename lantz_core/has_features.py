@@ -39,7 +39,7 @@ CUSTOMIZABLE = ((PRE_GET_PREFIX, 'pre_get'), (GET_PREFIX, 'get'),
                 (POST_SET_PREFIX, 'post_set'))
 
 
-def wrap_custom_iprop_methods(cls, meth_name, feat):
+def wrap_custom_feat_methods(cls, meth_name, feat):
     """ Wrap a HasFeature method to make it an instance method of a Feature.
 
     This is necessary so that users can define overriding method in a natural
