@@ -116,10 +116,8 @@ class ChannelContainer(object):
             return self._channels[ch_id]
 
         parent = self._parent
-        name = self._name
         ch = self._cls(parent, ch_id,
-                       caching_allowed=parent._ch_cache_allowed[name],
-                       caching_permissions=parent._ch_caching.get(name, {})
+                       caching_allowed=parent.use_cache
                        )
         self._channels[ch_id] = ch
         return ch

@@ -520,7 +520,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
     #: retries value)
     retries_exceptions = ()
 
-    def __init__(self, caching_allowed=True, caching_permissions={}):
+    def __init__(self, caching_allowed=True):
 
         self._cache = {}
         self._limits_cache = {}
@@ -529,40 +529,11 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         subsystems = self.__subsystems__
         channels = self.__channels__
 
-        # This is still undecided ....
-        if caching_allowed:
-            self.use_cache = True
-            # Avoid overriding class attribute
-            perms = {p: True for p in self.caching_permissions}
-            perms.update(caching_permissions)
-            self._caching_permissions = set([key for key in perms
-                                             if isinstance(perms[key], bool)
-                                             and perms[key]])
-
-            ss_cache_allowed = {ss: bool(perms.get(ss)) for ss in subsystems}
-
-            ss_caching = {k: v for k, v in perms.items()
-                          if k in subsystems and isinstance(v, dict)}
-
-            self._ch_cache_allowed = {ch: bool(perms.get(ch))
-                                      for ch in channels}
-
-            self._ch_caching = {k: v for k, v in perms.items()
-                                if k in channels and isinstance(v, dict)}
-
-        else:
-            self.use_cache = False
-            self._caching_permissions = set()
-            ss_cache_allowed = {ss: False for ss in subsystems}
-            ss_caching = {}
-
-            self._ch_cache_allowed = {ch: False for ch in channels}
-            self._ch_caching = {}
+        self.use_cache = caching_allowed
 
         # Initializing subsystems.
         for ss, cls in subsystems.items():
-            subsystem = cls(self, caching_allowed=ss_cache_allowed[ss],
-                            caching_permissions=ss_caching.get(ss, {}))
+            subsystem = cls(self, caching_allowed=caching_allowed)
             setattr(self, ss, subsystem)
 
         # Creating a channel container for each kind of declared channels.
