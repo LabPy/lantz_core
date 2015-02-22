@@ -26,9 +26,9 @@ class Feature(property):
     weird behaviour when some methods are customized.
     Feature are not meant to be used when writing a driver as it is a bit
     bare, one should rather use the more specialised found in other modules
-    of the iprops package.
+    of the features package.
 
-    When subclassing an Feature a number of rule should be enforced :
+    When subclassing a Feature a number of rule should be enforced :
     - the subclass should accept all the parameters from the base class
     - all creation arguments must be stored in creation_kwargs. Failing to do
     this will result in the impossibility to use set_feat.
