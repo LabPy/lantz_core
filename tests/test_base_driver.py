@@ -32,14 +32,14 @@ def test_bdriver_multiple_creation():
     assert c is not b
 
 
-def test_bdriver_open():
+def test_bdriver_initiliaze():
     with raises(NotImplementedError):
-        BaseDriver({'a': 1}).open_connection()
+        BaseDriver({'a': 1}).initialize()
 
 
-def test_bdriver_close():
+def test_bdriver_finalize():
     with raises(NotImplementedError):
-        BaseDriver({'a': 1}).close_connection()
+        BaseDriver({'a': 1}).finalize()
 
 
 def test_bdriver_check():

@@ -27,8 +27,7 @@ class InstrumentSigleton(HasFeaturesMeta):
 
     _instances_cache = {}
 
-    def __call__(self, connection_infos, caching_alowed=True,
-                 caching_permissions={}, auto_open=True):
+    def __call__(self, connection_infos, caching_alowed=True):
         # This is done on first call rather than init to avoid useless memory
         # allocation.
         if self not in self._instances_cache:
@@ -38,9 +37,7 @@ class InstrumentSigleton(HasFeaturesMeta):
         driver_id = self.compute_id(connection_infos)
         if driver_id not in cache:
             dr = super(InstrumentSigleton, self).__call__(connection_infos,
-                                                          caching_alowed,
-                                                          caching_permissions,
-                                                          auto_open)
+                                                          caching_alowed)
 
             cache[driver_id] = dr
         else:
@@ -83,10 +80,8 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
     """
     secure_com_except = (TimeoutError)
 
-    def __init__(self, connection_info, caching_allowed=True,
-                 caching_permissions={}, auto_open=True):
-        super(BaseDriver, self).__init__(caching_allowed,
-                                         caching_permissions)
+    def __init__(self, connection_info, caching_allowed=True):
+        super(BaseDriver, self).__init__(caching_allowed)
 
         self.owner = ''
         self.newly_created = True
@@ -109,7 +104,7 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
         """
         return frozenset(connection_infos.items())
 
-    def open_connection(self):
+    def initialize(self):
         """Open a connection to an instrument.
 
         """
@@ -120,7 +115,7 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
             80)
         raise NotImplementedError(message)
 
-    def close_connection(self):
+    def finalize(self):
         """Close the connection to the instrument.
 
         """
@@ -153,3 +148,15 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
             subclassing BaseInstrument.'''),
             80)
         raise NotImplementedError(message)
+
+    def __entry__(self):
+        """Context manager handling the connection to the instrument.
+
+        """
+        self.initialize()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Context manager handling the connection to the instrument.
+
+        """
+        self.finalize()
