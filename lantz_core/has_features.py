@@ -484,7 +484,7 @@ class HasFeaturesMeta(type):
                 target = mangled[n:]
                 if target in all_feats:
                     feat = clone_if_needed(all_feats[target])
-                    wrapped = wrap_custom_iprop_methods(cls, mangled, feat)
+                    wrapped = wrap_custom_feat_methods(cls, mangled, feat)
                     setattr(feat, feat_meth, wrapped)
                 else:
                     mess = cleandoc('''{} has no Feature {} whose behaviour
