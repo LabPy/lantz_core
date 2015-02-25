@@ -79,6 +79,7 @@ class MethodsComposer(object):
             will be called.
 
         """
+        self._remove_duplicate(name)
         self._names.insert(0, name)
         self._methods.insert(0, method)
 
@@ -95,6 +96,7 @@ class MethodsComposer(object):
             will be called.
 
         """
+        self._remove_duplicate(name)
         self._names.append(name)
         self._methods.append(method)
 
@@ -113,6 +115,7 @@ class MethodsComposer(object):
             will be called.
 
         """
+        self._remove_duplicate(name)
         i = self._names.index(anchor)
         self._names.insert(i+1, name)
         self._methods.insert(i+1, method)
@@ -132,12 +135,16 @@ class MethodsComposer(object):
             will be called.
 
         """
+        self._remove_duplicate(name)
         i = self._names.index(anchor)
         self._names.insert(i, name)
         self._methods.insert(i, method)
 
     def replace(self, name, method):
         """Replace an existing method by a new one.
+
+        Only custom methods can be replaced. Methods whose presence is
+        linked to the feature kwargs cannot be replaced.
 
         Parameters
         ----------
@@ -148,6 +155,7 @@ class MethodsComposer(object):
             will be called.
 
         """
+        self._remove_duplicate(name)
         i = self._names.index(name)
         self._names[i] = name
         self._methods[i] = method
@@ -171,6 +179,15 @@ class MethodsComposer(object):
         """
         self._names = []
         self._methods = []
+
+    def _remove_duplicate(self, name):
+        """Remove the name from the list to avoid having duplicate ids.
+
+        """
+        if name in self._names:
+            i = self._names.index(name)
+            del self._names[i]
+            del self._methods[i]
 
 
 class PreGetComposer(MethodsComposer):

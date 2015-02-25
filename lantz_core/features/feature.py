@@ -93,6 +93,13 @@ class Feature(property):
               self).__init__(self._get if getter is not None else None,
                              self._set if setter is not None else None,
                              self._del)
+
+        if get_format:
+            self.get = self.get_and_extract
+
+        self.modify_behavior('post_set', self.check_operation,
+                             ('operation', 'prepend'), True)
+
         if checks:
             self._build_checkers(checks)
         if discard:
@@ -133,6 +140,11 @@ class Feature(property):
 
         """
         return instance.default_get_feature(self, self._getter)
+
+    def get_and_extract(self, instance, value):
+        """
+        """
+        pass
 
     def post_get(self, instance, value):
         """Hook to alter the value returned by the underlying driver.
@@ -223,6 +235,29 @@ class Feature(property):
             Raised if the driver detects an issue.
 
         """
+        self.check_operation(self, instance, value, i_value, response)
+
+    def check_operation(self, instance, value, i_value, response):
+        """Check the instrument operated correctly.
+
+        This uses the driver default_check_operation method.
+
+        Parameters
+        ----------
+        instance : HasFeatures
+            Object on which this Feature is defined.
+        value :
+            Value as passed by the user.
+        i_value :
+            Value which was passed to the set method.
+        response :
+            Return value of the set method.
+
+        Raises
+        ------
+        LantzError :
+            Raised if the driver detects an issue.
+        """
         res, details = instance.default_check_operation(self, value, i_value,
                                                         response)
         if not res:
@@ -256,12 +291,6 @@ class Feature(property):
         """
         # TODO do
         self.__doc__ = doc
-
-    def extract(self, value):
-        """
-        """
-        # TODO implement
-        pass
 
     def modify_behavior(self, method_name, custom_method, specifiers=(),
                         internal=False):
@@ -347,13 +376,59 @@ class Feature(property):
         this method tries to insert the custom method in the most likely
         position.
 
+        CAUTION : This method strives to build something that makes sense but
+        it will most likely fail in some weird corner cases so avoid as mush as
+        possible to use set_feat on feature modified using specially named
+        method on the driver.
+
         """
-        pass
+        # Loop on methods which are affected by mofifiers.
+        for meth_name, modifiers in feat._customs.items():
+            # Loop through all the modifications.
+            for custom, modifier in modifiers.items():
+                if isinstance(modifier, MethodType):
+                    self.modify_behavior(meth_name, modifiers)
+                    continue
+
+                # In the absence of anchor we simply attempt the operation.
+                if modifier[1] not in ('add_after', 'add_before'):
+                    self.modify_behavior(meth_name, modifiers[0],
+                                         (custom, modifiers[1]))
+                # Otherwise we check whether or not the anchor exists and if
+                # not try to find the most meaningfull one.
+                else:
+                    our_names = getattr(self, meth_name)._names
+                    if custom in our_names:
+                        self.modify_behavior(meth_name, modifiers[0],
+                                             (custom, modifiers[1],
+                                              modifiers[2]))
+                    else:
+                        feat_names = getattr(self, meth_name)._names
+                        # For add after we try to find an entry existing in
+                        # both feature going backward (we will prepend at the
+                        # worst), for add before we go forward (we will append
+                        # in the absence of match).
+                        shift = -1 if modifier[1] == 'add_after' else -1
+                        index = feat_names.index(custom)
+                        while index > 0 and index < len(feat_names)-1:
+                            index += shift
+                            name = feat_names[index]
+                            if name in our_names:
+                                self.modify_behavior(meth_name, modifiers[0],
+                                                     (custom, modifiers[1],
+                                                      name))
+                                shift = 0
+                                break
+
+                        if shift != 0:
+                            op = 'prepend' if shift == -1 else 'append'
+                            self.modify_behavior(meth_name, modifiers[0],
+                                                 (custom, op))
 
     def _build_discard(self, to_discard):
         """
         """
-        # TODO implement
+        # TODO implement, append discrad to post_set
         pass
 
     def _build_checkers(self, checks):
@@ -365,15 +440,18 @@ class Feature(property):
         if len(checks) == 2:
             if checks[0]:
                 self.get_check = MethodType(build(checks[0]), self)
-                self.pre_get = self.get_check
             if checks[1]:
                 self.set_check = MethodType(build(checks[1], True), self)
-                self.pre_set = self.set_check
         else:
             self.get_check = MethodType(build(checks), self)
-            self.pre_get = self.get_check
             self.set_check = MethodType(build(checks, True), self)
-            self.pre_set = self.set_check
+
+        if hasattr(self, 'get_check'):
+            self.modify_behavior('pre_get', self.get_check,
+                                 ('check', 'prepend'), True)
+        if hasattr(self, 'set_check'):
+            self.modify_behavior('pre_set', self.set_check,
+                                 ('check', 'prepend'), True)
 
     def _build_checker(self, check, set=False):
         """Assemble a checker function from the provided assertions.
@@ -423,6 +501,9 @@ class Feature(property):
                 a_mess = '"Getting {} ' + a_mess
 
             func_def += '    ' + line + ', ' + a_mess + '\n'
+
+        if set:
+            func_def += '    return value'
 
         loc = {}
         exec_(func_def, locs=loc)

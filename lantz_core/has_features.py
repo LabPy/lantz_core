@@ -15,7 +15,7 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from future.utils import with_metaclass
-from types import FunctionType, MethodType
+from types import FunctionType
 from inspect import cleandoc, getsourcelines
 from itertools import chain
 from textwrap import fill
