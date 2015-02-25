@@ -64,8 +64,8 @@ class Feature(property):
         The check methods built from this are bound to the get_check and
         set_check names.
     discard : tuple
-        Tuple of names of features or limits whose cached value should be
-        discarded after setting the Feature.
+        Tuple of names of features whose cached value should be discarded after
+        setting the Feature.
 
     Attributes
     ----------
@@ -103,7 +103,11 @@ class Feature(property):
         if checks:
             self._build_checkers(checks)
         if discard:
-            self._build_discard(discard)
+            # XXXX this does not handle the limits if we choose to add them
+            # back
+            self._discard = discard
+            self.modify_behavior('post_set', self.discard_cache,
+                                 ('discard', 'append'), True)
         self.name = ''
 
     def pre_get(self, instance):
@@ -268,6 +272,12 @@ class Feature(property):
                 mess += '.'
             raise LantzError(mess.format(self._name, value, i_value))
 
+    def discard_cache(self, instance, value, i_value, response):
+        """Empty the cache of the specified values.
+
+        """
+        instance.clear_cache(features=self._discard)
+
     def clone(self):
         """Clone the Feature by copying all the local attributes and instance
         methods
@@ -384,11 +394,12 @@ class Feature(property):
         """
         # Loop on methods which are affected by mofifiers.
         for meth_name, modifiers in feat._customs.items():
-            # Loop through all the modifications.
-            for custom, modifier in modifiers.items():
-                if isinstance(modifier, MethodType):
+            if isinstance(modifiers, MethodType):
                     self.modify_behavior(meth_name, modifiers)
                     continue
+
+            # Loop through all the modifications.
+            for custom, modifier in modifiers.items():
 
                 # In the absence of anchor we simply attempt the operation.
                 if modifier[1] not in ('add_after', 'add_before'):
@@ -424,12 +435,6 @@ class Feature(property):
                             op = 'prepend' if shift == -1 else 'append'
                             self.modify_behavior(meth_name, modifiers[0],
                                                  (custom, op))
-
-    def _build_discard(self, to_discard):
-        """
-        """
-        # TODO implement, append discrad to post_set
-        pass
 
     def _build_checkers(self, checks):
         """Create the custom check function and bind them to check_get and
