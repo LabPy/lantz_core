@@ -197,30 +197,49 @@ class PostSetComposer(MethodComposer):
 # --- Customisation decorators ------------------------------------------------
 
 def append(function):
+    """Mark a function to be appended to a MethodComposer.
+
     """
-    """
-    pass
+    function._composing = ('append', '')
+    return function
 
 
 def prepend(function):
+    """Mark a function to be prepended to a MethodComposer.
+
     """
-    """
-    pass
+    function._composing = ('prepend', '')
+    return function
 
 
 def add_after(name):
+    """Mark a function to be added after another in a MethodComposer.
+
     """
-    """
-    pass
+    def decorator(function):
+        function._composing = ('add_after', name)
+        return function
+
+    return decorator
 
 
 def add_before(name):
+    """Mark a function to be added before another in a MethodComposer.
+
     """
-    """
-    pass
+    def decorator(function):
+        function._composing = ('add_before', name)
+        return function
+
+    return decorator
 
 
 def replace(name):
+    """Mark a function to replace another in a MethodComposer.
+
     """
-    """
-    pass
+    def decorator(function):
+        function._composing = ('replace', name)
+        return function
+
+    return decorator
