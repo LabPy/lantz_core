@@ -94,9 +94,6 @@ class Feature(property):
                              self._set if setter is not None else None,
                              self._del)
 
-        if get_format:
-            self.get = self.get_and_extract
-
         self.modify_behavior('post_set', self.check_operation,
                              ('operation', 'prepend'), True)
 
@@ -108,6 +105,9 @@ class Feature(property):
             self._discard = discard
             self.modify_behavior('post_set', self.discard_cache,
                                  ('discard', 'append'), True)
+        if get_format:
+            self.modify_behavior('post_get', self.extract,
+                                 ('extract', 'prepend'), True)
         self.name = ''
 
     def pre_get(self, instance):
@@ -144,11 +144,6 @@ class Feature(property):
 
         """
         return instance.default_get_feature(self, self._getter)
-
-    def get_and_extract(self, instance, value):
-        """
-        """
-        pass
 
     def post_get(self, instance, value):
         """Hook to alter the value returned by the underlying driver.
@@ -277,6 +272,12 @@ class Feature(property):
 
         """
         instance.clear_cache(features=self._discard)
+
+    def extract(self, instance, value):
+        """
+        """
+        # TODO implement
+        return value
 
     def clone(self):
         """Clone the Feature by copying all the local attributes and instance
