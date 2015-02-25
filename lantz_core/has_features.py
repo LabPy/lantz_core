@@ -538,25 +538,30 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         """
         cache = self._cache
         if features:
+            par = list()
             sss = defaultdict(list)
             chs = defaultdict(list)
             for name in features:
                 if '.' in name:
                     aux, n = name.split('.', 1)
-                    if aux in self.__subsystems__:
+                    if not aux:
+                        par.append(n)
+                    elif aux in self.__subsystems__:
                         sss[aux].append(n)
                     else:
                         chs[aux].append(n)
                 elif name in cache:
                     del cache[name]
 
+            self.parent.clear_cache(features=par)
+
             for ss in sss:
-                getattr(self, ss).clear_cache(properties=sss[ss])
+                getattr(self, ss).clear_cache(features=sss[ss])
 
             if self.__channels__:
                 for ch in chs:
                     for o in self._channel_cache.get(ch, {}).values():
-                        o.clear_cache(properties=chs[ch])
+                        o.clear_cache(features=chs[ch])
         else:
             self._cache = {}
             if subsystems:
