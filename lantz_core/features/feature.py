@@ -13,9 +13,9 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from types import MethodType
 from future.utils import exec_
-from inspect import cleandoc
-from functools import update_wrapper
+from collections import OrderedDict
 
+from .util import wrap_custom_feat_methods, MethodsComposer, COMPOSERS
 from ..errors import LantzError
 
 
@@ -78,15 +78,16 @@ class Feature(property):
 
     """
     def __init__(self, getter=None, setter=None, get_format='', retries=0,
-                 checks=None):
+                 checks=None, discard=None):
         self._getter = getter
         self._setter = setter
         self._retries = retries
+        self._customs = {}
         # Don't create the weak values dict if it is not used.
         self._proxies = ()
         self.creation_kwargs = {'getter': getter, 'setter': setter,
                                 'retries': retries, 'checks': checks,
-                                'get_format': get_format}
+                                'get_format': get_format, 'discard': discard}
 
         super(Feature,
               self).__init__(self._get if getter is not None else None,
@@ -94,6 +95,8 @@ class Feature(property):
                              self._del)
         if checks:
             self._build_checkers(checks)
+        if discard:
+            self._build_discard(discard)
         self.name = ''
 
     def pre_get(self, instance):
@@ -200,8 +203,8 @@ class Feature(property):
 
         This can be used to check the instrument operated correctly or perform
         some cleanup. By default this falls back on the driver
-        default_check_instr_operation method. This behaviour can be customized
-        by creating a _post_set_(iprop name) method on the driver class.
+        default_check_operation method. This behaviour can be customized
+        by creating a _post_set_(feat name) method on the driver class.
 
         Parameters
         ----------
@@ -260,46 +263,92 @@ class Feature(property):
         # TODO implement
         pass
 
-    def _wrap_with_checker(self, func, target='pre_get'):
-        """Wrap a func to execute checker before it if necessary and bind as
-        method.
+    def modify_behavior(self, method_name, custom_method, specifiers=(),
+                        internal=False):
+        """Alter the behavior of the Feature using the provided method.
+
+        Those operations are logged into the _customs dictionary in OrderedDict
+        for each method so that they can be duplicated by copy_custom_behaviors
+        The storing format is as follow : method, name of the operation, args
+        of the operation.
 
         Parameters
         ----------
-        func : callable
-            Callable to use as pre_set or pre_get method which should be
-            wrapped.
-        target : {'pre_get', 'pre_set'}
-            Target method to which bind the wrapper.
+        method_name : unicode
+            Name of the Feature behavior which should be modified.
+
+        custom_method : MethodType
+            Method to use when customizing the feature behavior.
+
+        specifiers : tuple, optional
+            Tuple used to determine how the method should be used. If ommitted
+            the method will simply replace the existing behavior otherwise
+            it will be used to update the MethodComposer in the adequate
+            fashion. For get and set MethodComposers are not used and no matter
+            this value the method will replace the existing behavior.
 
         """
-        if target not in ('pre_get', 'pre_set'):
-            mess = cleandoc('''The target of _wrap_with_checker should be
-                            pre_set or pre_get, not {}''')
-            raise ValueError(mess.format(target))
+        # Make the method a method of the Feature.
+        m = wrap_custom_feat_methods(custom_method, self)
 
-        func_ = func.__func__ if isinstance(func, MethodType) else func
+        # In the absence of specifiers or for get and set we simply replace the
+        # method.
+        if method_name in ('get', 'set') or not specifiers:
+            setattr(self, method_name, m)
+            if not internal:
+                self._customs[method_name] = m
+            return
 
-        if target == 'pre_get' and hasattr(self, 'get_check'):
-                def wrapper(self, instance):
-                    self.get_check(instance)
-                    return func_(self, instance)
-                update_wrapper(wrapper, func_)
-                func = wrapper
-        elif target == 'pre_set' and hasattr(self, 'set_check'):
-            def wrapper(self, instance, value):
-                self.set_check(instance, value)
-                return func_(self, instance, value)
-            update_wrapper(wrapper, func_)
-            func = wrapper
+        # Otherwise we make sure we have a MethopsComposer.
+        composer = getattr(self, method_name)
+        if not isinstance(composer, MethodsComposer):
+            composer = COMPOSERS[method_name]()
 
-        if isinstance(func, MethodType):
-            if func.__self__ is not self:
-                func = MethodType(func.__func__, self)
+        # In case of non internal modifications (ie unrelated to Feature
+        # initialisation) we keep a description of what has been done to be
+        # able to copy those behaviors. If a method already existed we assume
+        # it was meaningful and add it in the composer under the id 'old'.
+        if not internal:
+            if method_name not in self._customs:
+                self._customs[method_name] = OrderedDict()
+            elif not isinstance(self._customs[method_name], OrderedDict):
+                composer.prepend('old', self._customs[method_name])
+                self._customs[method_name] = {'old': (m, 'prepend')}
+
+        # We now update the composer.
+        composer_method_name = specifiers[1]
+        composer_method = getattr(composer, composer_method_name)
+        if composer_method_name in ('add_before', 'add_after'):
+            composer_method(specifiers[2], specifiers[0], m)
+        elif composer_method_name == 'remove':
+            composer_method(specifiers[0])
         else:
-            func = MethodType(func, self)
+            composer_method(specifiers[0], m)
 
-        setattr(self, target, func)
+        # Finally we update the _customs dict and reassign the composer.
+        setattr(self, method_name, composer)
+        if not internal:
+            if composer_method_name == 'remove':
+                del self._customs[method_name][specifiers[0]]
+            elif composer_method_name == 'replace':
+                old = list(self._customs[method_name][specifiers[0]])
+                old[0] = m
+                self._customs[method_name][specifiers[0]] = old
+            else:
+                op = [m] + list(specifiers[1:])
+                self._customs[method_name][specifiers[0]] = tuple(op)
+
+    def copy_custom_behaviors(self, feat):
+        """Copy the custom behaviors existing on a feature to this one.
+
+        This is used by set_feat to preserve the custom behaviors after
+        recreating the feature with different kwargs. If an add_before or
+        add_after clause cannot be satisfied because the anchor disappeared
+        this method tries to insert the custom method in the most likely
+        position.
+
+        """
+        pass
 
     def _build_discard(self, to_discard):
         """

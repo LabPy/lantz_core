@@ -16,7 +16,6 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from future.utils import with_metaclass
 from types import FunctionType, MethodType
-from functools import update_wrapper
 from inspect import cleandoc, getsourcelines
 from itertools import chain
 from textwrap import fill
@@ -37,41 +36,6 @@ CUSTOMIZABLE = ((PRE_GET_PREFIX, 'pre_get'), (GET_PREFIX, 'get'),
                 (POST_GET_PREFIX, 'post_get'),
                 (PRE_SET_PREFIX, 'pre_set'), (SET_PREFIX, 'set'),
                 (POST_SET_PREFIX, 'post_set'))
-
-
-def wrap_custom_feat_methods(cls, meth_name, feat):
-    """ Wrap a HasFeature method to make it an instance method of a Feature.
-
-    This is necessary so that users can define overriding method in a natural
-    way in the HasFeatures subclass assuming that the instance object will be
-    passed as first argument and the Feature object as second when in reality
-    it will be the other way round due to python binding mechanism.
-
-    Parameters
-    ----------
-    cls : type
-        Class on which the method which should override the default behaviour
-        of the Feature is defined.
-    meth_name : unicode
-        Name of the method which should be used to override the default
-        behaviour of the Feature.
-    feat : Feature
-        Instance of Feature whose default behaviour should be overridden.
-
-    Returns
-    -------
-    wrapped : MethodType
-        Method object which can be
-
-    """
-    wrapped = getattr(cls, meth_name).__func__
-
-    def wrapper(iprop, instance, *args, **kwargs):
-        return wrapped(instance, iprop, *args, **kwargs)
-
-    update_wrapper(wrapper, wrapped)
-    wrapper.__wrapped__ = wrapped
-    return MethodType(wrapper, feat)
 
 
 class set_feat(object):
@@ -98,15 +62,9 @@ class set_feat(object):
         kwargs = feat.creation_kwargs.copy()
         kwargs.update(self.custom_attrs)
         new = cls(**kwargs)
-        new.name = feat.name
-        # Now set the method modifiers if any.
-        ndict = new.__dict__
-        for k, v in feat.__dict__.items():
-            if k not in ndict:
-                if isinstance(v, MethodType):
-                    setattr(new, k, MethodType(v.__func__, new))
-                else:
-                    setattr(new, k, v)
+
+        new.copy_custom_behaviors(feat)
+
         return new
 
 
@@ -484,8 +442,9 @@ class HasFeaturesMeta(type):
                 target = mangled[n:]
                 if target in all_feats:
                     feat = clone_if_needed(all_feats[target])
-                    wrapped = wrap_custom_feat_methods(cls, mangled, feat)
-                    setattr(feat, feat_meth, wrapped)
+                    meth = getattr(cls, mangled)
+                    feat.modify_behavior(feat_meth, meth,
+                                         getattr(meth, '_composing', ()))
                 else:
                     mess = cleandoc('''{} has no Feature {} whose behaviour
                                     can be customised''')

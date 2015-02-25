@@ -11,11 +11,48 @@
 """
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
+from types import MethodType
+from functools import update_wrapper
+
+
+def wrap_custom_feat_methods(meth, feat):
+    """ Wrap a HasFeature method to make it an instance method of a Feature.
+
+    This is necessary so that users can define overriding method in a natural
+    way in the HasFeatures subclass assuming that the instance object will be
+    passed as first argument and the Feature object as second when in reality
+    it will be the other way round due to python binding mechanism.
+
+    Parameters
+    ----------
+    meth : MethodType
+        Method which should be used to alter the default behaviour of the
+        Feature.
+    feat : Feature
+        Instance of Feature whose default behaviour should be overridden.
+
+    Returns
+    -------
+    wrapped : MethodType
+        Method object which can be
+
+    """
+    if meth.__self__ is feat:
+        return meth
+
+    wrapped = meth.__func__
+
+    def wrapper(iprop, instance, *args, **kwargs):
+        return wrapped(instance, iprop, *args, **kwargs)
+
+    update_wrapper(wrapper, wrapped)
+    wrapper.__wrapped__ = wrapped
+    return MethodType(wrapper, feat)
 
 
 # --- Methods composers -------------------------------------------------------
 
-class MethodComposer(object):
+class MethodsComposer(object):
     """Function like object used to compose feature methods calls.
 
     All methods to call are kept in an ordered dict ensuring that they will
@@ -136,7 +173,7 @@ class MethodComposer(object):
         self._methods = []
 
 
-class PreGetComposer(MethodComposer):
+class PreGetComposer(MethodsComposer):
     """Composer used for pre_get methods.
 
     """
@@ -150,7 +187,7 @@ class PreGetComposer(MethodComposer):
             m(driver)
 
 
-class PostGetComposer(MethodComposer):
+class PostGetComposer(MethodsComposer):
     """Composer for post_get methods.
 
     """
@@ -165,7 +202,7 @@ class PostGetComposer(MethodComposer):
         return value
 
 
-class PreSetComposer(MethodComposer):
+class PreSetComposer(MethodsComposer):
     """Composer for pre_set methods.
 
     """
@@ -180,7 +217,7 @@ class PreSetComposer(MethodComposer):
         return m
 
 
-class PostSetComposer(MethodComposer):
+class PostSetComposer(MethodsComposer):
     """Composer for post_set methods.
 
     """
@@ -193,53 +230,62 @@ class PostSetComposer(MethodComposer):
         for m in self._methods:
             value = m(driver, value, d_value, response)
 
+COMPOSERS = {'pre_get': PreGetComposer, 'post_get': PostGetComposer,
+             'pre_set': PreSetComposer, 'post_set': PostSetComposer}
+
 
 # --- Customisation decorators ------------------------------------------------
 
-def append(function):
-    """Mark a function to be appended to a MethodComposer.
-
-    """
-    function._composing = ('append', '')
-    return function
-
-
-def prepend(function):
-    """Mark a function to be prepended to a MethodComposer.
-
-    """
-    function._composing = ('prepend', '')
-    return function
-
-
-def add_after(name):
-    """Mark a function to be added after another in a MethodComposer.
+def append(id_str='custom'):
+    """Mark a function to be appended to a MethodsComposer.
 
     """
     def decorator(function):
-        function._composing = ('add_after', name)
+        function._composing = (id_str, 'append')
         return function
 
     return decorator
 
 
-def add_before(name):
-    """Mark a function to be added before another in a MethodComposer.
+def prepend(id_str='custom'):
+    """Mark a function to be prepended to a MethodsComposer.
 
     """
     def decorator(function):
-        function._composing = ('add_before', name)
+        function._composing = (id_str, 'prepend')
         return function
 
     return decorator
 
 
-def replace(name):
-    """Mark a function to replace another in a MethodComposer.
+def add_after(name, id_str='custom'):
+    """Mark a function to be added after another in a MethodsComposer.
 
     """
     def decorator(function):
-        function._composing = ('replace', name)
+        function._composing = (id_str, 'add_after', name)
+        return function
+
+    return decorator
+
+
+def add_before(name, id_str='custom'):
+    """Mark a function to be added before another in a MethodsComposer.
+
+    """
+    def decorator(function):
+        function._composing = (id_str, 'add_before', name)
+        return function
+
+    return decorator
+
+
+def replace(id_str):
+    """Mark a function to replace another in a MethodsComposer.
+
+    """
+    def decorator(function):
+        function._composing = (id_str, 'replace')
         return function
 
     return decorator
