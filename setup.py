@@ -50,6 +50,7 @@ language to wrap existing drivers and DLLs.''',
     packages = ['lantz_core',
                 'lantz_core.features'],
     requires = ['numpy',
+                'future',
                 'pyvisa'],
 )
 
