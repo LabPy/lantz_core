@@ -14,10 +14,10 @@ from __future__ import (division, unicode_literals, print_function,
 from nose.tools import assert_equal, assert_is
 
 from lantz_core.has_features import channel
-from .testing_tools import TestingParent
+from .testing_tools import DummyParent
 
 
-class ChParent(TestingParent):
+class ChParent(DummyParent):
 
     ch = channel('_list_ch')
 

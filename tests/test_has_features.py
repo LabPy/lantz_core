@@ -18,12 +18,12 @@ from lantz_core.subsystem import SubSystem
 from lantz_core.channel import Channel
 from lantz_core.features.feature import Feature
 
-from .testing_tools import TestingParent
+from .testing_tools import DummyParent
 
 
 def test_documenting_feature():
 
-    class DocTester(TestingParent):
+    class DocTester(DummyParent):
 
         #: This is the docstring for
         #: the Feature test.
@@ -47,7 +47,7 @@ def test_customizing():
         def post_get(self, iprop, val):
             return self.dec+val+self.dec
 
-    class ParentTester(TestingParent):
+    class ParentTester(DummyParent):
         test = DecorateIP(getter=True, setter=True)
 
         def _get_test(self, iprop):
@@ -66,12 +66,12 @@ def test_customizing():
 
 def test_overriding_get():
 
-    class NoOverrideGet(TestingParent):
+    class NoOverrideGet(DummyParent):
         test = Feature(getter=True)
 
     assert NoOverrideGet().test
 
-    class OverrideGet(TestingParent):
+    class OverrideGet(DummyParent):
         test = Feature(getter=True)
 
         def _get_test(self, iprop):
@@ -82,7 +82,7 @@ def test_overriding_get():
 
 def test_overriding_pre_get():
 
-    class OverridePreGet(TestingParent):
+    class OverridePreGet(DummyParent):
         test = Feature(getter=True)
 
         def _get_test(self, iprop):
@@ -97,7 +97,7 @@ def test_overriding_pre_get():
 
 def test_overriding_post_get():
 
-    class OverridePostGet(TestingParent):
+    class OverridePostGet(DummyParent):
         test = Feature(getter=True)
 
         def _get_test(self, iprop):
@@ -111,12 +111,12 @@ def test_overriding_post_get():
 
 def test_overriding_set():
 
-    class NoOverrideSet(TestingParent):
+    class NoOverrideSet(DummyParent):
         test = Feature(setter=True)
 
     NoOverrideSet().test = 1
 
-    class OverrideSet(TestingParent):
+    class OverrideSet(DummyParent):
         test = Feature(setter=True)
 
         def _set_test(self, iprop, value):
@@ -129,7 +129,7 @@ def test_overriding_set():
 
 def test_overriding_pre_set():
 
-    class OverridePreSet(TestingParent):
+    class OverridePreSet(DummyParent):
         test = Feature(setter=True)
 
         def _set_test(self, iprop, value):
@@ -145,7 +145,7 @@ def test_overriding_pre_set():
 
 def test_overriding_post_set():
 
-    class OverridePreSet(TestingParent):
+    class OverridePreSet(DummyParent):
         test = Feature(setter=True)
 
         def _set_test(self, iprop, value):
@@ -166,7 +166,7 @@ def test_clone_if_needed():
 
     prop = Feature(getter=True)
 
-    class Overriding(TestingParent):
+    class Overriding(DummyParent):
         test = prop
 
         def _get_test(self, iprop):
@@ -186,7 +186,7 @@ def test_clone_if_needed():
 
 def test_subsystem_declaration1():
 
-    class DeclareSubsystem(TestingParent):
+    class DeclareSubsystem(DummyParent):
 
         #: Subsystem docstring
         sub_test = subsystem()
@@ -199,7 +199,7 @@ def test_subsystem_declaration1():
 
 def test_subsystem_declaration2():
 
-    class DeclareSubsystem2(TestingParent):
+    class DeclareSubsystem2(DummyParent):
 
         sub_test = subsystem()
         with sub_test as s:
@@ -216,7 +216,7 @@ def test_subsystem_declaration2():
 
 def test_subsystem_declaration3():
 
-    class DeclareSubsystem(TestingParent):
+    class DeclareSubsystem(DummyParent):
 
         sub_test = subsystem()
         with sub_test as s:
@@ -232,7 +232,7 @@ def test_subsystem_declaration3():
 
 def test_subsystem_declaration4():
 
-    class DeclareSubsystem(TestingParent):
+    class DeclareSubsystem(DummyParent):
 
         sub_test = subsystem()
 
@@ -258,7 +258,7 @@ def test_channel_declaration1():
     class Dummy(Channel):
         pass
 
-    class DeclareChannel(TestingParent):
+    class DeclareChannel(DummyParent):
 
         ch = channel('_available_ch', Dummy)
 
