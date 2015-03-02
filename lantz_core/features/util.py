@@ -37,10 +37,13 @@ def wrap_custom_feat_methods(meth, feat):
         Method object which can be
 
     """
-    if meth.__self__ is feat:
-        return meth
+    if isinstance(meth, MethodType):
+        if meth.__self__ is feat:
+            return meth
 
-    wrapped = meth.__func__
+        wrapped = meth.__func__
+    else:
+        wrapped = meth
 
     def wrapper(iprop, instance, *args, **kwargs):
         return wrapped(instance, iprop, *args, **kwargs)

@@ -200,7 +200,6 @@ def make_cls_from_subpart(parent_name, part_name, part, base, docs):
             bases = tuple([Channel] + list(bases))
 
     # Extract the docstring specific to this subpart.
-    print(docs)
     part_doc = docs.get(part_name, '')
     s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
     docs = {k[-1]: v for k, v in s_docs.items()
@@ -270,7 +269,6 @@ class HasFeaturesMeta(type):
         to_remove = []
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
-        print(docs)
 
         # Set of seen subparts to avoid counting multiple times the same one
         # which ahappens due to the context manager use.
@@ -278,7 +276,7 @@ class HasFeaturesMeta(type):
 
         # First we identify all elements in the passed dict to clean it up
         # before creating the class.
-        for key, value in dct.iteritems():
+        for key, value in dct.items():
             if value is SUBPART_FUNC:
                 to_remove.append(key)
 
