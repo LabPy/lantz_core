@@ -210,6 +210,7 @@ class PreGetComposer(MethodsComposer):
     """Composer used for pre_get methods.
 
     """
+    __slots__ = ()
 
     def __call__(self, driver):
         """Call mimicking a pre_get method and calling all assigned methods
@@ -224,6 +225,7 @@ class PostGetComposer(MethodsComposer):
     """Composer for post_get methods.
 
     """
+    __slots__ = ()
 
     def __call__(self, driver, value):
         """Call mimicking a post_get method and calling all assigned methods
@@ -239,6 +241,7 @@ class PreSetComposer(MethodsComposer):
     """Composer for pre_set methods.
 
     """
+    __slots__ = ()
 
     def __call__(self, driver, value):
         """Call mimicking a pre_set method and calling all assigned methods
@@ -247,13 +250,14 @@ class PreSetComposer(MethodsComposer):
         """
         for m in self._methods:
             value = m(driver, value)
-        return m
+        return value
 
 
 class PostSetComposer(MethodsComposer):
     """Composer for post_set methods.
 
     """
+    __slots__ = ()
 
     def __call__(self, driver, value, d_value, response):
         """Call mimicking a post_set method and calling all assigned methods
