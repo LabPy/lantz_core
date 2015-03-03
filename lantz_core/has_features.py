@@ -16,7 +16,7 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from future.utils import with_metaclass
 from types import FunctionType
-from inspect import cleandoc, getsourcelines
+from inspect import cleandoc, getsourcelines, currentframe
 from itertools import chain
 from textwrap import fill
 from abc import ABCMeta
@@ -89,6 +89,7 @@ class _subpart(object):
         self._bases_ = bases
         self._parent_ = None
         self._aliases_ = []
+        self._temp_frame_ = None
 
     def __setattr__(self, name, value):
         if isinstance(value, _subpart):
@@ -115,14 +116,28 @@ class _subpart(object):
         use shorter names in declarations.
 
         """
+        self._temp_frame_ = currentframe().f_back.f_locals.copy()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """"Using this a context manager helps readability and can allow to
         use shorter names in declarations.
 
+        When exiting we cleanup the class frame to avoid leaking subpart only
+        declarations into the main class. We also discover the aliases used
+        for this subpart which are later used to collect the docstrings of the
+        features.
+
         """
-        pass
+        frame = currentframe().f_back
+        frame_locals = frame.f_locals
+        diff = set(frame_locals) - set(self._temp_frame_)
+        aliases = {k: v for k, v in frame_locals.items()
+                   if k in diff and v is self}
+        self._aliases_.extend(aliases)
+        for k in diff:
+            del frame.f_locals[k]
+        self._temp_frame_ = None
 
 
 class subsystem(_subpart):
@@ -270,32 +285,16 @@ class HasFeaturesMeta(type):
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
 
-        # Set of seen subparts to avoid counting multiple times the same one
-        # which ahappens due to the context manager use.
-        seen_subparts = set()
-
         # First we identify all elements in the passed dict to clean it up
         # before creating the class.
         for key, value in dct.items():
-            if value is SUBPART_FUNC:
-                to_remove.append(key)
 
-            elif isinstance(value, _subpart):
+            if isinstance(value, _subpart):
                 if key in subparts:
                     msg = 'Attempt to redeclare subpart {}'
                     raise KeyError(msg.format(key))
-                if value not in seen_subparts:
-                    value._name_ = key
-                    subparts[key] = value
-                    seen_subparts.add(value)
-                elif len(key) > len(value._name_):
-                    subparts[key] = value
-                    del subparts[value._name_]
-                    to_remove.append(value._name_)
-                    value._name_ = key
-                else:
-                    to_remove.append(key)
-                value._aliases_.append(key)
+                value._name_ = key
+                subparts[key] = value
 
             elif isinstance(value, Feature):
                 feats[key] = value
