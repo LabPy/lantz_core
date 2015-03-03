@@ -69,6 +69,12 @@ class MethodsComposer(object):
         self._methods = []
         self._names = []
 
+    def clone(self):
+        new = type(self)()
+        new._names = self._names[:]
+        new._methods = self._methods[:]
+        return new
+
     def prepend(self, name, method):
         """Prepend a method to existing ones.
 
@@ -158,9 +164,7 @@ class MethodsComposer(object):
             will be called.
 
         """
-        self._remove_duplicate(name)
         i = self._names.index(name)
-        self._names[i] = name
         self._methods[i] = method
 
     def remove(self, name):
@@ -182,6 +186,9 @@ class MethodsComposer(object):
         """
         self._names = []
         self._methods = []
+
+    def __contains__(self, item):
+        return item in self._names
 
     def _remove_duplicate(self, name):
         """Remove the name from the list to avoid having duplicate ids.

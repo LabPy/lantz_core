@@ -290,6 +290,8 @@ class Feature(property):
         for k, v in self.__dict__.items():
             if isinstance(v, MethodType):
                 setattr(p, k, MethodType(v.__func__, p))
+            elif isinstance(v, MethodsComposer):
+                setattr(p, k, v.clone())
             else:
                 setattr(p, k, v)
 
@@ -347,13 +349,13 @@ class Feature(property):
         # In case of non internal modifications (ie unrelated to Feature
         # initialisation) we keep a description of what has been done to be
         # able to copy those behaviors. If a method already existed we assume
-        # it was meaningful and add it in the composer under the id 'old'.
+        # it was meaningful and add it in the composer under the id 'custom'.
         if not internal:
             if method_name not in self._customs:
                 self._customs[method_name] = OrderedDict()
             elif not isinstance(self._customs[method_name], OrderedDict):
                 composer.prepend('old', self._customs[method_name])
-                self._customs[method_name] = {'old': (m, 'prepend')}
+                self._customs[method_name] = {'custom': (m, 'prepend')}
 
         # We now update the composer.
         composer_method_name = specifiers[1]
@@ -370,7 +372,8 @@ class Feature(property):
         if not internal:
             if composer_method_name == 'remove':
                 del self._customs[method_name][specifiers[0]]
-            elif composer_method_name == 'replace':
+            elif (composer_method_name == 'replace' and
+                    specifiers[0] in self._customs[method_name]):
                 old = list(self._customs[method_name][specifiers[0]])
                 old[0] = m
                 self._customs[method_name][specifiers[0]] = old
@@ -402,18 +405,23 @@ class Feature(property):
             # Loop through all the modifications.
             for custom, modifier in modifiers.items():
 
+                method = getattr(self, meth_name)
                 # In the absence of anchor we simply attempt the operation.
                 if modifier[1] not in ('add_after', 'add_before'):
-                    self.modify_behavior(meth_name, modifiers[0],
-                                         (custom, modifiers[1]))
+                    self.modify_behavior(meth_name, modifier[0],
+                                         (custom, modifier[1]))
                 # Otherwise we check whether or not the anchor exists and if
                 # not try to find the most meaningfull one.
+                elif not isinstance(method, MethodsComposer):
+                    aux = {'add_after': 'append', 'add_before': 'prepend'}
+                    self.modify_behavior(meth_name, modifier[0],
+                                         (custom, aux[modifier[1]]))
                 else:
-                    our_names = getattr(self, meth_name)._names
+                    our_names = method._names
                     if custom in our_names:
-                        self.modify_behavior(meth_name, modifiers[0],
-                                             (custom, modifiers[1],
-                                              modifiers[2]))
+                        self.modify_behavior(meth_name, modifier[0],
+                                             (custom, modifier[1],
+                                              modifier[2]))
                     else:
                         feat_names = getattr(self, meth_name)._names
                         # For add after we try to find an entry existing in
@@ -426,8 +434,8 @@ class Feature(property):
                             index += shift
                             name = feat_names[index]
                             if name in our_names:
-                                self.modify_behavior(meth_name, modifiers[0],
-                                                     (custom, modifiers[1],
+                                self.modify_behavior(meth_name, modifier[0],
+                                                     (custom, modifier[1],
                                                       name))
                                 shift = 0
                                 break
@@ -453,11 +461,12 @@ class Feature(property):
             self.set_check = MethodType(build(checks, True), self)
 
         if hasattr(self, 'get_check'):
+            print('get checker')
             self.modify_behavior('pre_get', self.get_check,
-                                 ('check', 'prepend'), True)
+                                 ('checks', 'prepend'), True)
         if hasattr(self, 'set_check'):
             self.modify_behavior('pre_set', self.set_check,
-                                 ('check', 'prepend'), True)
+                                 ('checks', 'prepend'), True)
 
     def _build_checker(self, check, set=False):
         """Assemble a checker function from the provided assertions.

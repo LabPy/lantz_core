@@ -18,8 +18,8 @@ from lantz_core.has_features import HasFeatures
 
 class DummyParent(HasFeatures):
 
-    def __init__(self):
-        super(DummyParent, self).__init__()
+    def __init__(self, caching_allowed=False):
+        super(DummyParent, self).__init__(caching_allowed)
         self.d_get_called = 0
         self.d_get_cmd = None
         self.d_get_args = ()

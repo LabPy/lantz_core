@@ -17,6 +17,8 @@ from lantz_core.has_features import subsystem, set_feat, channel, HasFeatures
 from lantz_core.subsystem import SubSystem
 from lantz_core.channel import Channel
 from lantz_core.features.feature import Feature
+from lantz_core.features.util import (append, prepend, add_after, add_before,
+                                      replace)
 
 from .testing_tools import DummyParent
 
@@ -180,6 +182,198 @@ def test_clone_if_needed():
             return 2
 
     assert OverridingParent.test is not prop
+
+# --- Test customizing feature ------------------------------------------------
+
+
+class ToCustom(DummyParent):
+
+    feat = Feature(getter=True, checks='{aux} is True')
+
+    def __init__(self):
+        super(ToCustom, self).__init__()
+        self.aux = True
+        self.aux2 = True
+        self.custom_called = 0
+
+    def _get_feat(self, feat):
+        return feat
+
+
+def test_customizing_append():
+
+    class CustomAppend(ToCustom):
+
+        @append()
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    driver = CustomAppend()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+
+def test_customizing_prepend():
+
+    class CustomPrepend(ToCustom):
+
+        @prepend()
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    driver = CustomPrepend()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 3
+
+
+def test_customizing_add_after():
+
+    class CustomAddAfter(ToCustom):
+
+        @add_after('checks')
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    driver = CustomAddAfter()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+
+def test_customizing_add_before():
+
+    class CustomAddBefore(ToCustom):
+
+        @add_before('checks')
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    driver = CustomAddBefore()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 3
+
+
+def test_customizing_replace():
+
+    class CustomReplace(ToCustom):
+
+        @replace('checks')
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    driver = CustomReplace()
+    driver.aux = False
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+
+def test_copying_custom_behavior1():
+
+    class CustomAppend(ToCustom):
+
+        @append()
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    class CopyingCustom(CustomAppend):
+
+        feat = set_feat(checks=None)
+
+    driver = CopyingCustom()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    driver.feat
+    assert driver.custom_called == 3
+
+
+def test_copying_custom_behavior2():
+
+    class CustomAddAfter(ToCustom):
+
+        @add_after('checks')
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    class CopyingCustom(CustomAddAfter):
+
+        feat = set_feat(checks=None)
+
+    driver = CopyingCustom()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
+    assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    driver.feat
+    assert driver.custom_called == 2
 
 # --- Test declaring subsystems -----------------------------------------------
 
