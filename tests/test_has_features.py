@@ -499,3 +499,86 @@ def test_channel_declaration1():
 def test_def_check():
     with raises(NotImplementedError):
         HasFeatures().default_check_operation(None, None, None)
+
+
+# --- Test cache handling -----------------------------------------------------
+
+class TestHasFeaturesCache(object):
+
+    def setup(self):
+
+        class CacheTest(DummyParent):
+            test1 = Feature()
+            test2 = Feature()
+
+            ss = subsystem()
+            with ss:
+                ss.test = Feature()
+
+            ch = channel('list_channels')
+            with ch:
+                ch.aux = Feature()
+
+            def list_channels(self):
+                return [1, 2]
+
+        self.a = CacheTest()
+        self.ss = self.a.ss
+        self.ch1 = self.a.ch[1]
+        self.ch2 = self.a.ch[2]
+
+        self.a._cache = {'test1': 1, 'test2': 2}
+        self.ss._cache = {'test': 1}
+        self.ch1._cache = {'aux': 1}
+        self.ch2._cache = {'aux': 2}
+
+    def test_clear_all_caches(self):
+
+        self.a.clear_cache()
+        assert self.a._cache == {}
+        assert self.ss._cache == {}
+        assert self.ch1._cache == {}
+        assert self.ch2._cache == {}
+
+    def test_clear_save_ss(self):
+
+        self.a.clear_cache(False)
+        assert self.a._cache == {}
+        assert self.ss._cache == {'test': 1}
+        assert self.ch1._cache == {}
+        assert self.ch2._cache == {}
+
+    def test_clear_save_ch(self):
+
+        self.a.clear_cache(channels=False)
+        assert self.a._cache == {}
+        assert self.ss._cache == {}
+        assert self.ch1._cache == {'aux': 1}
+        assert self.ch2._cache == {'aux': 2}
+
+    def test_clear_by_feat(self):
+
+        self.a.clear_cache(features=['test1', 'ch.aux', 'ss.test'])
+        assert self.a._cache == {'test2': 2}
+        assert self.ss._cache == {}
+        assert self.ch1._cache == {}
+        assert self.ch2._cache == {}
+
+    def test_check_cache_all_caches(self):
+        res = self.a.check_cache()
+        assert res == {'test1': 1, 'test2': 2, 'ss': {'test': 1},
+                       'ch': {1: {'aux': 1}, 2: {'aux': 2}}}
+
+    def test_check_cache_save_ss(self):
+        res = self.a.check_cache(False)
+        assert res == {'test1': 1, 'test2': 2,
+                       'ch': {1: {'aux': 1}, 2: {'aux': 2}}}
+
+    def test_check_cache_save_ch(self):
+        res = self.a.check_cache(channels=False)
+        assert res == {'test1': 1, 'test2': 2, 'ss': {'test': 1}}
+
+    def test_check_cache_prop(self):
+        res = self.a.check_cache(properties=['test1', 'ss.test', 'ch.aux'])
+        assert res == {'test1': 1, 'ss': {'test': 1},
+                       'ch': {1: {'aux': 1}, 2: {'aux': 2}}}

@@ -550,14 +550,15 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                 elif name in cache:
                     del cache[name]
 
-            self.parent.clear_cache(features=par)
+            if par:
+                self.parent.clear_cache(features=par)
 
             for ss in sss:
                 getattr(self, ss).clear_cache(features=sss[ss])
 
             if self.__channels__:
                 for ch in chs:
-                    for o in self._channel_cache.get(ch, {}).values():
+                    for o in getattr(self, ch):
                         o.clear_cache(features=chs[ch])
         else:
             self._cache = {}
@@ -565,8 +566,8 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                 for ss in self.__subsystems__:
                     getattr(self, ss).clear_cache(channels=channels)
             if channels and self.__channels__:
-                for chs in self._channel_cache.values():
-                    for ch in chs.values():
+                for chs in self.__channels__:
+                    for ch in getattr(self, chs):
                         ch.clear_cache(subsystems)
 
     def check_cache(self, subsystems=True, channels=True, properties=None):
@@ -614,8 +615,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                 for ch in chs:
                     ch_cache = {}
                     cache[ch] = ch_cache
-                    for ch_id, o in self._channel_cache.get(ch, {}).items():
-                        ch_cache[ch_id] = o.check_cache(properties=chs[ch])
+                    channel_cont = getattr(self, ch)
+                    for ch_id in channel_cont.available:
+                        chan = channel_cont[ch_id]
+                        ch_cache[ch_id] = chan.check_cache(properties=chs[ch])
         else:
             cache = self._cache.copy()
             if subsystems:
@@ -623,11 +626,12 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                     cache[ss] = getattr(self, ss)._cache.copy()
 
             if channels:
-                for chs, ch_dict in self._channel_cache.items():
+                for chs in self.__channels__:
                     ch_cache = {}
                     cache[chs] = ch_cache
-                    for ch in ch_dict:
-                        ch_cache[ch] = ch_dict[ch]._cache.copy()
+                    channel_cont = getattr(self, chs)
+                    for ch in channel_cont.available:
+                        ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
 
