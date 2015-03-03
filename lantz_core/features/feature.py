@@ -15,7 +15,7 @@ from types import MethodType
 from future.utils import exec_
 from collections import OrderedDict
 
-from .util import wrap_custom_feat_methods, MethodsComposer, COMPOSERS
+from .util import wrap_custom_feat_method, MethodsComposer, COMPOSERS
 from ..errors import LantzError
 
 
@@ -292,6 +292,8 @@ class Feature(property):
                 setattr(p, k, MethodType(v.__func__, p))
             elif isinstance(v, MethodsComposer):
                 setattr(p, k, v.clone())
+            elif isinstance(v, dict):
+                setattr(p, k, v.copy())
             else:
                 setattr(p, k, v)
 
@@ -331,7 +333,7 @@ class Feature(property):
 
         """
         # Make the method a method of the Feature.
-        m = wrap_custom_feat_methods(custom_method, self)
+        m = wrap_custom_feat_method(custom_method, self)
 
         # In the absence of specifiers or for get and set we simply replace the
         # method.
@@ -370,13 +372,21 @@ class Feature(property):
         # Finally we update the _customs dict and reassign the composer.
         setattr(self, method_name, composer)
         if not internal:
+            customs = self._customs[method_name]
             if composer_method_name == 'remove':
-                del self._customs[method_name][specifiers[0]]
-            elif (composer_method_name == 'replace' and
-                    specifiers[0] in self._customs[method_name]):
-                old = list(self._customs[method_name][specifiers[0]])
-                old[0] = m
-                self._customs[method_name][specifiers[0]] = old
+                del customs[specifiers[0]]
+            elif composer_method_name == 'replace':
+                if specifiers[0] in customs:
+                    old = list(customs[specifiers[0]])
+                    old[0] = m
+                    customs[specifiers[0]] = tuple(old)
+                else:
+                    ind = composer._names.index(specifiers[0])
+                    if ind == 0:
+                        customs[specifiers[0]] = (m, 'prepend')
+                    else:
+                        n = composer._names[ind-1]
+                        customs[specifiers[0]] = (m, 'add_after', n)
             else:
                 op = [m] + list(specifiers[1:])
                 self._customs[method_name][specifiers[0]] = tuple(op)
@@ -410,12 +420,12 @@ class Feature(property):
                 if modifier[1] not in ('add_after', 'add_before'):
                     self.modify_behavior(meth_name, modifier[0],
                                          (custom, modifier[1]))
-                # Otherwise we check whether or not the anchor exists and if
-                # not try to find the most meaningfull one.
                 elif not isinstance(method, MethodsComposer):
                     aux = {'add_after': 'append', 'add_before': 'prepend'}
                     self.modify_behavior(meth_name, modifier[0],
                                          (custom, aux[modifier[1]]))
+                # Otherwise we check whether or not the anchor exists and if
+                # not try to find the most meaningfull one.
                 else:
                     our_names = method._names
                     if custom in our_names:
@@ -461,7 +471,6 @@ class Feature(property):
             self.set_check = MethodType(build(checks, True), self)
 
         if hasattr(self, 'get_check'):
-            print('get checker')
             self.modify_behavior('pre_get', self.get_check,
                                  ('checks', 'prepend'), True)
         if hasattr(self, 'set_check'):

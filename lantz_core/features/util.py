@@ -15,7 +15,7 @@ from types import MethodType
 from functools import update_wrapper
 
 
-def wrap_custom_feat_methods(meth, feat):
+def wrap_custom_feat_method(meth, feat):
     """ Wrap a HasFeature method to make it an instance method of a Feature.
 
     This is necessary so that users can define overriding method in a natural
@@ -37,6 +37,7 @@ def wrap_custom_feat_methods(meth, feat):
         Method object which can be
 
     """
+    # Access the real function in case a method is passed.
     if isinstance(meth, MethodType):
         if meth.__self__ is feat:
             return meth
@@ -45,11 +46,16 @@ def wrap_custom_feat_methods(meth, feat):
     else:
         wrapped = meth
 
-    def wrapper(iprop, instance, *args, **kwargs):
-        return wrapped(instance, iprop, *args, **kwargs)
+    # Wrap if necessary the function to match the argument order.
+    if not hasattr(meth, '_feat_wrapped_'):
+        def wrapper(iprop, instance, *args, **kwargs):
+            return wrapped(instance, iprop, *args, **kwargs)
 
-    update_wrapper(wrapper, wrapped)
-    wrapper.__wrapped__ = wrapped
+        update_wrapper(wrapper, wrapped)
+        wrapper._feat_wrapped_ = wrapped
+    else:
+        wrapper = wrapped
+
     return MethodType(wrapper, feat)
 
 

@@ -373,7 +373,36 @@ def test_copying_custom_behavior2():
     driver.aux2 = True
     driver.aux = False
     driver.feat
+    assert driver.custom_called == 3
+
+
+def test_copying_custom_behavior3():
+
+    class CustomReplace(ToCustom):
+
+        @replace('checks')
+        def _pre_get_feat(self, feat):
+            self.custom_called += 1
+            assert self.aux2 is True
+
+    class CopyingCustom(CustomReplace):
+
+        feat = set_feat(checks=None)
+
+    driver = CopyingCustom()
+    assert driver.feat
+    assert driver.custom_called == 1
+
+    driver.aux2 = False
+    with raises(AssertionError):
+        driver.feat
     assert driver.custom_called == 2
+
+    driver.aux2 = True
+    driver.aux = False
+    driver.feat
+    assert driver.custom_called == 3
+
 
 # --- Test declaring subsystems -----------------------------------------------
 
