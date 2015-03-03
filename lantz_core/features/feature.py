@@ -530,7 +530,7 @@ class Feature(property):
             func_def += '    return value'
 
         loc = {}
-        exec_(func_def, locs=loc)
+        exec_(func_def, globals(), loc)
         return loc['check']
 
     def _get(self, instance):
