@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-    lantz.has_features
-    ~~~~~~~~~~~~~~~~~~
+    lantz_core.has_features
+    ~~~~~~~~~~~~~~~~~~~~~~~
 
     HasFeatures is the most basic object in Lantz.
 
     It handles the use of Features, Subsystem, and Channel and the possibility
-    to customize Feature behaviour by defining specially named methods..
+    to customize Feature behaviour by defining specially named methods.
 
     :copyright: 2015 by Lantz Authors, see AUTHORS for more details.
     :license: BSD, see LICENSE for more details.
@@ -36,6 +36,9 @@ CUSTOMIZABLE = ((PRE_GET_PREFIX, 'pre_get'), (GET_PREFIX, 'get'),
                 (POST_GET_PREFIX, 'post_get'),
                 (PRE_SET_PREFIX, 'pre_set'), (SET_PREFIX, 'set'),
                 (POST_SET_PREFIX, 'post_set'))
+
+
+LIMITS_PREFIX = '_limits_'
 
 
 class set_feat(object):
@@ -278,6 +281,7 @@ class HasFeaturesMeta(type):
                       'post_set': []     # Post set methods: _post_set_*
                       }
         feat_paras = {}                  # Sentinels changing feats behavior.
+        limits = []                      # Names of the defined limits.
 
         # List of the entries to remove from the class because they are
         # destinated to a subpart.
@@ -304,18 +308,21 @@ class HasFeaturesMeta(type):
                 feat_paras[key] = value
 
             elif isinstance(value, FunctionType):
-                if key.startswith(POST_GET_PREFIX):
+                startswith = key.startswith
+                if startswith(POST_GET_PREFIX):
                     cust_feats['post_get'].append(key)
-                elif key.startswith(PRE_SET_PREFIX):
+                elif startswith(PRE_SET_PREFIX):
                     cust_feats['pre_set'].append(key)
-                elif key.startswith(POST_SET_PREFIX):
+                elif startswith(POST_SET_PREFIX):
                     cust_feats['post_set'].append(key)
-                elif key.startswith(PRE_GET_PREFIX):
+                elif startswith(PRE_GET_PREFIX):
                     cust_feats['pre_get'].append(key)
-                elif key.startswith(GET_PREFIX):
+                elif startswith(GET_PREFIX):
                     cust_feats['get'].append(key)
-                elif key.startswith(SET_PREFIX):
+                elif startswith(SET_PREFIX):
                     cust_feats['set'].append(key)
+                elif startswith(LIMITS_PREFIX):
+                    limits.append(key)
 
         # Clean up class dictionary.
         for k in chain(feat_paras, to_remove, subparts):
@@ -460,6 +467,9 @@ class HasFeaturesMeta(type):
 
         # Put a reference to the channels in the class
         cls.__channels__ = channels
+
+        # Keep a ref to names of the declared limits accessors.
+        cls.__limits__ = set([r[len(LIMITS_PREFIX):] for r in limits])
 
         return cls
 
@@ -634,6 +644,52 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                         ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
+
+    @property
+    def declared_limits(self):
+        """Set of declared limits for the class.
+
+        Ranges are considered declared as soon as a getter has been defined.
+
+        """
+        return self.__ranges__
+
+    def get_limits(self, limits_id):
+        """Access the limits object matching the definition.
+
+        Parameters
+        ----------
+        limits_id : str
+            Id of the limits to retrieve. The id should be the name of the
+            limits.
+
+        Returns
+        -------
+        limits_validator: AbstractLimitsValidator
+            A limits validator matching the current attributes state, which can
+            be used to validate values.
+
+        """
+        if limits_id not in self._limits_cache:
+            self._limits_cache[limits_id] = getattr(self,
+                                                    LIMITS_PREFIX+limits_id)()
+
+        return self._limits_cache[limits_id]
+
+    def discard_limits(self, limits_id):
+        """Remove a limits from the cache.
+
+        This is called when a Feature declare a limits key in the discard dict.
+
+        Parameters
+        ----------
+        limits_id : iterable
+            Iterable of the ids of the limits to discard.
+
+        """
+        for lim_id in limits_id:
+            if lim_id in self._limits_cache:
+                del self._limits_cache[lim_id]
 
     def reopen_connection(self):
         """Reopen the connection to the instrument.

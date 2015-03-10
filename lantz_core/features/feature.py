@@ -63,9 +63,11 @@ class Feature(property):
         to indicate no check should be performed.
         The check methods built from this are bound to the get_check and
         set_check names.
-    discard : tuple
+    discard : tuple or dict
         Tuple of names of features whose cached value should be discarded after
-        setting the Feature.
+        setting the Feature or dictionary specifying a list of feature whose
+        cache should be discarded under the 'feature' key and a list of limits
+        to discard under the 'limits' key.
 
     Attributes
     ----------
@@ -100,8 +102,8 @@ class Feature(property):
         if checks:
             self._build_checkers(checks)
         if discard:
-            # XXXX this does not handle the limits if we choose to add them
-            # back
+            if not isinstance(discard, dict):
+                discard = {'features': discard}
             self._discard = discard
             self.modify_behavior('post_set', self.discard_cache,
                                  ('discard', 'append'), True)
@@ -271,7 +273,9 @@ class Feature(property):
         """Empty the cache of the specified values.
 
         """
-        instance.clear_cache(features=self._discard)
+        instance.clear_cache(features=self._discard['features'])
+        if 'limits' in self._discard:
+            instance.discard_limits(self._discard['limits'])
 
     def extract(self, instance, value):
         """
