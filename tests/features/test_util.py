@@ -77,6 +77,9 @@ class TestMethodsComposer(object):
         assert not self.composer._names
         assert not self.composer._methods
 
+    def test_getitem(self):
+        assert self.composer['test1'] is self.first
+
 
 def assert_val(val):
     assert val
