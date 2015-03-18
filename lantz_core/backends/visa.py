@@ -16,10 +16,13 @@ from inspect import cleandoc
 from collections import ChainMap
 from time import sleep
 
-from pyvisa.highlevel import ResourceManager
-from pyvisa.errors import VisaIOError, VisaTypeError
-from pyvisa import constants
-
+try:
+    from pyvisa.highlevel import ResourceManager
+    from pyvisa import constants
+    from pyvisa import errors
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warn('The PyVISA library is necessary to use the visa backend')
 
 from ..features.register import Register
 from ..base_driver import BaseDriver
@@ -151,7 +154,7 @@ class BaseVisaDriver(BaseDriver):
     """
     #: Exceptions triggering a new communication attempts for Features with a
     #: non zero retries values.
-    retries_exceptions = (TimeoutError, VisaIOError)
+    retries_exceptions = (TimeoutError, errors.VisaIOError)
 
     #: Protocols supported by the instrument.
     #: For example::
@@ -189,7 +192,7 @@ class BaseVisaDriver(BaseDriver):
 
         try:
             r_info = self._resource_manager.resource_info(r_name)
-        except VisaIOError:
+        except errors.VisaIOError:
             raise ValueError('The resource name is invalid')
 
         #: The resource name
