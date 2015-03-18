@@ -12,6 +12,8 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+from pyvisa.highlevel import ResourceManager
+from pytest import yield_fixture, raises
 from lantz_core.backends.visa import (get_visa_resource_manager,
                                       set_visa_resource_manager,
                                       assemble_resource_name,
@@ -19,16 +21,65 @@ from lantz_core.backends.visa import (get_visa_resource_manager,
                                       VisaMessageDriver)
 
 
-def test_get_visa_resource_manager():
-    pass
+@yield_fixture
+def cleanup():
+    yield
+    import lantz_core.backends.visa as lv
+    lv._RESOURCE_MANAGER = None
 
 
-def test_set_visa_resource_manager():
-    pass
+def test_get_visa_resource_manager(cleanup):
+
+    rm = get_visa_resource_manager('@py')
+    assert rm is get_visa_resource_manager('@py')
+
+    assert rm is not get_visa_resource_manager('@sim')
+    import lantz_core.backends.visa as lv
+    assert len(lv._RESOURCE_MANAGER) == 2
 
 
-def test_assemble_resource_name():
-    pass
+def test_set_visa_resource_manager(cleanup):
+
+    rm = ResourceManager('@py')
+    set_visa_resource_manager(rm, '@py')
+    assert rm is get_visa_resource_manager('@py')
+
+    with raises(ValueError):
+        set_visa_resource_manager(rm, '@py')
+
+    rm = ResourceManager('@sim')
+    set_visa_resource_manager(rm, '@sim')
+    assert rm is get_visa_resource_manager('@sim')
+
+
+class TestAssembleResourceName():
+
+    def test_serial(self):
+        pass
+
+    def test_gpib(self):
+        pass
+
+    def test_gpib_with_board(self):
+        pass
+
+    def test_pxi(self):
+        pass
+
+    def test_pxi_with_board(self):
+        pass
+
+    def test_usb_instr(self):
+        pass
+
+    def test_usb_raw_with_board(self):
+        pass
+
+    def test_tcpip_instr(self):
+        pass
+
+    def test_tcpip_socket_with_board_and_hostname(self):
+        pass
 
 
 class TestBaseVisaDriver(object):
