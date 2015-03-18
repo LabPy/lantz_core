@@ -13,7 +13,6 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 import logging
 from inspect import cleandoc
-from collections import ChainMap
 from time import sleep
 
 try:
@@ -64,8 +63,8 @@ def set_visa_resource_manager(rm, backend='@ni'):
     global _RESOURCE_MANAGER
     assert isinstance(rm, ResourceManager)
     if _RESOURCE_MANAGER and backend in _RESOURCE_MANAGER:
-        mess = 'Cannot set Eapii resource manager once one already exists.'
-        raise ValueError(mess)
+        msg = 'Cannot set Lantz VISA resource manager once one already exists.'
+        raise ValueError(msg)
 
     if not _RESOURCE_MANAGER:
         _RESOURCE_MANAGER = {backend: rm}
@@ -248,10 +247,10 @@ class BaseVisaDriver(BaseDriver):
         """
         if cls.DEFAULTS:
 
-            maps = [user_kwargs] if user_kwargs else []
+            kwargs = {}
 
-            for key in ((instrument_type, resource_type), instrument_type,
-                        resource_type, 'COMMON'):
+            for key in ('COMMON', resource_type, instrument_type,
+                        (instrument_type, resource_type)):
                 if key not in cls.DEFAULTS:
                     continue
                 value = cls.DEFAULTS[key]
@@ -259,9 +258,12 @@ class BaseVisaDriver(BaseDriver):
                     msg = 'An %s instrument is not supported by the driver %s'
                     raise InterfaceNotSupported(msg, key, cls.__name__)
                 if value:
-                    maps.append(value)
+                    kwargs.update(value)
 
-            return dict(ChainMap(*maps))
+            if user_kwargs:
+                kwargs.update(user_kwargs)
+
+            return kwargs
         else:
             return user_kwargs
 
