@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 import logging
 from inspect import cleandoc
 from time import sleep
+from future.builtins import str
 
 try:
     from pyvisa.highlevel import ResourceManager
@@ -89,10 +90,10 @@ def assemble_resource_name(connection_infos):
     # Add the address.
     if 'address' not in connection_infos:
         raise ValueError('No connection address was provided')
-    rn += connection_infos['address'] + '::'
+    rn += str(connection_infos['address']) + '::'
 
     # Check for TCPIP specififcs.
-    if 'type' == 'TCPIP':
+    if ct == 'TCPIP':
         rn += '{}::'.format(connection_infos.get('hostname', 'inst0'))
 
     # Handle connection mode.
