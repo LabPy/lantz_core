@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    lantz_core.channel
-    ~~~~~~~~~~~~~
+    lantz_core.base_driver
+    ~~~~~~~~~~~~~~~~~~~~~~
 
     BaseInstrument defines the common expected interface for all drivers.
 
@@ -27,7 +27,7 @@ class InstrumentSigleton(HasFeaturesMeta):
 
     _instances_cache = {}
 
-    def __call__(self, connection_infos, caching_alowed=True):
+    def __call__(self, connection_infos, caching_allowed=True):
         # This is done on first call rather than init to avoid useless memory
         # allocation.
         if self not in self._instances_cache:
@@ -37,7 +37,7 @@ class InstrumentSigleton(HasFeaturesMeta):
         driver_id = self.compute_id(connection_infos)
         if driver_id not in cache:
             dr = super(InstrumentSigleton, self).__call__(connection_infos,
-                                                          caching_alowed)
+                                                          caching_allowed)
 
             cache[driver_id] = dr
         else:
@@ -64,12 +64,6 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
         the instrument
     caching_allowed : bool, optionnal
         Boolean use to determine if instrument properties can be cached
-    caching_permissions : dict(str : bool), optionnal
-        Dict specifying which instrument properties can be cached, override the
-        default parameters specified in the class attribute.
-    auto_open : bool, optional
-        Whether to automatically open the connection to the instrument when the
-        driver is instantiated.
 
     Attributes
     ----------
@@ -90,6 +84,9 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
     @classmethod
     def compute_id(cls, connection_infos):
         """Use the connection infos to compute a unique id for the instrument.
+
+        This can also be used to alter the content of the connection_info
+        dictionary.
 
         Parameters
         ----------

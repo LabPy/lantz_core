@@ -15,9 +15,8 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from future.utils import with_metaclass
-from types import FunctionType, MethodType
-from functools import update_wrapper
-from inspect import cleandoc, getsourcelines
+from types import FunctionType
+from inspect import cleandoc, getsourcelines, currentframe
 from itertools import chain
 from textwrap import fill
 from abc import ABCMeta
@@ -37,41 +36,6 @@ CUSTOMIZABLE = ((PRE_GET_PREFIX, 'pre_get'), (GET_PREFIX, 'get'),
                 (POST_GET_PREFIX, 'post_get'),
                 (PRE_SET_PREFIX, 'pre_set'), (SET_PREFIX, 'set'),
                 (POST_SET_PREFIX, 'post_set'))
-
-
-def wrap_custom_feat_methods(cls, meth_name, feat):
-    """ Wrap a HasFeature method to make it an instance method of a Feature.
-
-    This is necessary so that users can define overriding method in a natural
-    way in the HasFeatures subclass assuming that the instance object will be
-    passed as first argument and the Feature object as second when in reality
-    it will be the other way round due to python binding mechanism.
-
-    Parameters
-    ----------
-    cls : type
-        Class on which the method which should override the default behaviour
-        of the Feature is defined.
-    meth_name : unicode
-        Name of the method which should be used to override the default
-        behaviour of the Feature.
-    feat : Feature
-        Instance of Feature whose default behaviour should be overridden.
-
-    Returns
-    -------
-    wrapped : MethodType
-        Method object which can be
-
-    """
-    wrapped = getattr(cls, meth_name).__func__
-
-    def wrapper(iprop, instance, *args, **kwargs):
-        return wrapped(instance, iprop, *args, **kwargs)
-
-    update_wrapper(wrapper, wrapped)
-    wrapper.__wrapped__ = wrapped
-    return MethodType(wrapper, feat)
 
 
 class set_feat(object):
@@ -98,15 +62,9 @@ class set_feat(object):
         kwargs = feat.creation_kwargs.copy()
         kwargs.update(self.custom_attrs)
         new = cls(**kwargs)
-        new.name = feat.name
-        # Now set the method modifiers if any.
-        ndict = new.__dict__
-        for k, v in feat.__dict__.items():
-            if k not in ndict:
-                if isinstance(v, MethodType):
-                    setattr(new, k, MethodType(v.__func__, new))
-                else:
-                    setattr(new, k, v)
+
+        new.copy_custom_behaviors(feat)
+
         return new
 
 
@@ -131,6 +89,7 @@ class _subpart(object):
         self._bases_ = bases
         self._parent_ = None
         self._aliases_ = []
+        self._temp_frame_ = None
 
     def __setattr__(self, name, value):
         if isinstance(value, _subpart):
@@ -157,14 +116,28 @@ class _subpart(object):
         use shorter names in declarations.
 
         """
+        self._temp_frame_ = currentframe().f_back.f_locals.copy()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """"Using this a context manager helps readability and can allow to
         use shorter names in declarations.
 
+        When exiting we cleanup the class frame to avoid leaking subpart only
+        declarations into the main class. We also discover the aliases used
+        for this subpart which are later used to collect the docstrings of the
+        features.
+
         """
-        pass
+        frame = currentframe().f_back
+        frame_locals = frame.f_locals
+        diff = set(frame_locals) - set(self._temp_frame_)
+        aliases = {k: v for k, v in frame_locals.items()
+                   if k in diff and v is self}
+        self._aliases_.extend(aliases)
+        for k in diff:
+            del frame.f_locals[k]
+        self._temp_frame_ = None
 
 
 class subsystem(_subpart):
@@ -242,7 +215,6 @@ def make_cls_from_subpart(parent_name, part_name, part, base, docs):
             bases = tuple([Channel] + list(bases))
 
     # Extract the docstring specific to this subpart.
-    print(docs)
     part_doc = docs.get(part_name, '')
     s_docs = {tuple(k.split('.', 1)): v for k, v in docs.items()}
     docs = {k[-1]: v for k, v in s_docs.items()
@@ -312,34 +284,17 @@ class HasFeaturesMeta(type):
         to_remove = []
 
         docs = dct.pop('_docs_') if '_docs_' in dct else None
-        print(docs)
-
-        # Set of seen subparts to avoid counting multiple times the same one
-        # which ahappens due to the context manager use.
-        seen_subparts = set()
 
         # First we identify all elements in the passed dict to clean it up
         # before creating the class.
-        for key, value in dct.iteritems():
-            if value is SUBPART_FUNC:
-                to_remove.append(key)
+        for key, value in dct.items():
 
-            elif isinstance(value, _subpart):
+            if isinstance(value, _subpart):
                 if key in subparts:
                     msg = 'Attempt to redeclare subpart {}'
                     raise KeyError(msg.format(key))
-                if value not in seen_subparts:
-                    value._name_ = key
-                    subparts[key] = value
-                    seen_subparts.add(value)
-                elif len(key) > len(value._name_):
-                    subparts[key] = value
-                    del subparts[value._name_]
-                    to_remove.append(value._name_)
-                    value._name_ = key
-                else:
-                    to_remove.append(key)
-                value._aliases_.append(key)
+                value._name_ = key
+                subparts[key] = value
 
             elif isinstance(value, Feature):
                 feats[key] = value
@@ -484,8 +439,9 @@ class HasFeaturesMeta(type):
                 target = mangled[n:]
                 if target in all_feats:
                     feat = clone_if_needed(all_feats[target])
-                    wrapped = wrap_custom_feat_methods(cls, mangled, feat)
-                    setattr(feat, feat_meth, wrapped)
+                    meth = getattr(cls, mangled)
+                    feat.modify_behavior(feat_meth, meth,
+                                         getattr(meth, '_composing', ()))
                 else:
                     mess = cleandoc('''{} has no Feature {} whose behaviour
                                     can be customised''')
@@ -579,33 +535,39 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         """
         cache = self._cache
         if features:
+            par = list()
             sss = defaultdict(list)
             chs = defaultdict(list)
             for name in features:
                 if '.' in name:
                     aux, n = name.split('.', 1)
-                    if aux in self.__subsystems__:
+                    if not aux:
+                        par.append(n)
+                    elif aux in self.__subsystems__:
                         sss[aux].append(n)
                     else:
                         chs[aux].append(n)
                 elif name in cache:
                     del cache[name]
 
+            if par:
+                self.parent.clear_cache(features=par)
+
             for ss in sss:
-                getattr(self, ss).clear_cache(properties=sss[ss])
+                getattr(self, ss).clear_cache(features=sss[ss])
 
             if self.__channels__:
                 for ch in chs:
-                    for o in self._channel_cache.get(ch, {}).values():
-                        o.clear_cache(properties=chs[ch])
+                    for o in getattr(self, ch):
+                        o.clear_cache(features=chs[ch])
         else:
             self._cache = {}
             if subsystems:
                 for ss in self.__subsystems__:
                     getattr(self, ss).clear_cache(channels=channels)
             if channels and self.__channels__:
-                for chs in self._channel_cache.values():
-                    for ch in chs.values():
+                for chs in self.__channels__:
+                    for ch in getattr(self, chs):
                         ch.clear_cache(subsystems)
 
     def check_cache(self, subsystems=True, channels=True, properties=None):
@@ -653,8 +615,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                 for ch in chs:
                     ch_cache = {}
                     cache[ch] = ch_cache
-                    for ch_id, o in self._channel_cache.get(ch, {}).items():
-                        ch_cache[ch_id] = o.check_cache(properties=chs[ch])
+                    channel_cont = getattr(self, ch)
+                    for ch_id in channel_cont.available:
+                        chan = channel_cont[ch_id]
+                        ch_cache[ch_id] = chan.check_cache(properties=chs[ch])
         else:
             cache = self._cache.copy()
             if subsystems:
@@ -662,11 +626,12 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                     cache[ss] = getattr(self, ss)._cache.copy()
 
             if channels:
-                for chs, ch_dict in self._channel_cache.items():
+                for chs in self.__channels__:
                     ch_cache = {}
                     cache[chs] = ch_cache
-                    for ch in ch_dict:
-                        ch_cache[ch] = ch_dict[ch]._cache.copy()
+                    channel_cont = getattr(self, chs)
+                    for ch in channel_cont.available:
+                        ch_cache[ch] = channel_cont[ch]._cache.copy()
 
         return cache
 
