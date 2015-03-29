@@ -41,6 +41,39 @@ def test_discard_cache():
     assert driver.feat_cac == 3
 
 
+# Test discarding both feature and limits
+def test_discard_cache2():
+
+    class Cache(DummyParent):
+
+        val = 1
+        li = 1
+
+        feat_cac = Feature(getter=True)
+        feat_dis = Feature(setter=True, discard={'features': ('feat_cac',),
+                                                 'limits': ('lim', )})
+
+        def _get_feat_cac(self, feat):
+            return self.val
+
+        def _set_feat_dis(self, feature, val):
+            self.val = val
+
+        def _limits_lim(self):
+            self.li += 1
+            return self.li
+
+    driver = Cache(True)
+    assert driver.feat_cac == 1
+    assert driver.get_limits('lim') == 2
+    driver.val = 2
+    assert driver.feat_cac == 1
+    assert driver.get_limits('lim') == 2
+    driver.feat_dis = 3
+    assert driver.feat_cac == 3
+    assert driver.get_limits('lim') == 3
+
+
 def test_feature_checkers():
 
     class AuxParent(DummyParent):

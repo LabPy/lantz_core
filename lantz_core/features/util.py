@@ -193,6 +193,9 @@ class MethodsComposer(object):
         self._names = []
         self._methods = []
 
+    def __getitem__(self, key):
+        return self._methods[self._names.index(key)]
+
     def __contains__(self, item):
         return item in self._names
 

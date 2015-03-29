@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     tests.test_subsystem
-    ~~~~~~~~~~~~~~~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~
 
     Test basic subsystem instance functionalities.
 

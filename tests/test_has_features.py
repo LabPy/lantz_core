@@ -582,3 +582,20 @@ class TestHasFeaturesCache(object):
         res = self.a.check_cache(properties=['test1', 'ss.test', 'ch.aux'])
         assert res == {'test1': 1, 'ss': {'test': 1},
                        'ch': {1: {'aux': 1}, 2: {'aux': 2}}}
+
+
+# --- Test limits handling ----------------------------------------------------
+
+def test_limits():
+
+    class LimitsDecl(DummyParent):
+
+        def _limits_test(self):
+            return object()
+
+    assert LimitsDecl.__limits__ == set(['test'])
+    decl = LimitsDecl()
+    r = decl.get_limits('test')
+    assert decl.get_limits('test') is r
+    decl.discard_limits(('test', ))
+    assert decl.get_limits('test') is not r
