@@ -33,10 +33,10 @@ class Enumerable(Feature):
         Permitted values for the property.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), get_format='',
+    def __init__(self, getter=None, setter=None, values=(), extract='',
                  retries=0, checks=None, discard=None):
-        super(Enumerable, self).__init__(getter, setter, get_format, retries,
-                                         checks, discard)
+        Feature.__init__(self, getter, setter, extract, retries, checks,
+                         discard)
         self.values = set(values)
         self.creation_kwargs['values'] = values
 
@@ -60,10 +60,10 @@ class Unicode(Enumerable):
     enumeration.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), get_format='',
+    def __init__(self, getter=None, setter=None, values=(), extract='',
                  retries=0, checks=None, discard=None):
-        super(Unicode, self).__init__(getter, setter, values, get_format,
-                                      retries, checks, discard)
+        Enumerable.__init__(self, getter, setter, values, extract,
+                            retries, checks, discard)
 
         self.modify_behavior('post_get', self.cast_to_unicode,
                              ('cast_to_unicode', 'append'), True)
@@ -82,10 +82,10 @@ class LimitsValidated(Feature):
         provided it is used to retrieve the range from the driver at runtime.
 
     """
-    def __init__(self, getter=None, setter=None, limits=None, get_format='',
+    def __init__(self, getter=None, setter=None, limits=None, extract='',
                  retries=0, checks=None, discard=None):
-        super(LimitsValidated, self).__init__(getter, setter, get_format,
-                                              retries, checks, discard)
+        Feature.__init__(self, getter, setter, extract, retries, checks,
+                         discard)
         if limits:
             if isinstance(limits, AbstractLimitsValidator):
                 self.limits = limits
@@ -147,13 +147,13 @@ class Int(LimitsValidated, Enumerable):
 
     """
     def __init__(self, getter=None, setter=None, values=(), limits=None,
-                 get_format='', retries=0, checks=None, discard=None):
+                 extract='', retries=0, checks=None, discard=None):
         if values and not limits:
-            Enumerable.__init__(self, getter, setter, values, get_format,
+            Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:
-            super(Int, self).__init__(getter, setter, limits, get_format,
-                                      retries, checks, discard)
+            LimitsValidated.__init__(self, getter, setter, limits, extract,
+                                     retries, checks, discard)
 
         self.modify_behavior('post_get', self.cast_to_int,
                              ('cast', 'append'), True)
@@ -172,14 +172,14 @@ class Float(LimitsValidated, Enumerable):
 
     """
     def __init__(self, getter=None, setter=None, values=(), limits=None,
-                 unit=None, get_format='', retries=0, checks=None,
+                 unit=None, extract='', retries=0, checks=None,
                  discard=None):
         if values and not limits:
-            Enumerable.__init__(self, getter, setter, values, get_format,
+            Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:
-            super(Float, self).__init__(getter, setter, limits, get_format,
-                                        retries, checks, discard)
+            LimitsValidated.__init__(self, getter, setter, limits, extract,
+                                     retries, checks, discard)
 
         if UNIT_SUPPORT and unit:
             ureg = get_unit_registry()

@@ -42,7 +42,7 @@ def test_customizing():
     class DecorateIP(Feature):
 
         def __init__(self, getter=True, setter=True, retries=0,
-                     get_format=None, checks=None, discard=None, dec='<br>'):
+                     extract=None, checks=None, discard=None, dec='<br>'):
             super(DecorateIP, self).__init__(getter, setter)
             self.dec = dec
 

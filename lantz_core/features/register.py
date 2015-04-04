@@ -27,10 +27,10 @@ class Register(Feature):
         the values are used to specify the bits to consider.
 
     """
-    def __init__(self, getter=None, setter=None, names=(), get_format='',
+    def __init__(self, getter=None, setter=None, names=(), extract='',
                  retries=0, checks=None, discard=None):
-        super(Register, self).__init__(getter, setter, get_format, retries,
-                                       checks, discard)
+        Feature.__init__(self, getter, setter, extract, retries,
+                         checks, discard)
 
         if isinstance(names, dict):
             aux = list(range(8))
@@ -63,7 +63,10 @@ class Register(Feature):
 
         """
         val = int(value)
-        bit_conversion = lambda x, i: bool(x & (1 << i))
+
+        def bit_conversion(x, i):
+            return bool(x & (1 << i))
+
         return OrderedDict((n, bit_conversion(val, i))
                            for i, n in enumerate(self.names)
                            if n is not None)

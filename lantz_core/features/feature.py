@@ -14,6 +14,7 @@ from __future__ import (division, unicode_literals, print_function,
 from types import MethodType
 from future.utils import exec_
 from collections import OrderedDict
+from stringparser import Parser
 
 from .util import wrap_custom_feat_method, MethodsComposer, COMPOSERS
 from ..errors import LantzError
@@ -45,9 +46,9 @@ class Feature(property):
         of the driver. If absent the Feature will be considered read-only.
         This is typically a string. If the default set behaviour is overwritten
         True should be passed to mark the property as settable.
-    get_format : unicode, optional
-        String to use to extract the interesting value from the instrument
-        answer.
+    extract : unicode or Parser, optional
+        String or stringparser.Parser to use to extract the interesting value
+        from the instrument answer.
     retries : int, optional
         Whether or not a failed communication should result in a new attempt
         to communicate after re-opening the communication. The value is used to
@@ -79,7 +80,7 @@ class Feature(property):
         subclass customisation. This should not be manipulated by user code.
 
     """
-    def __init__(self, getter=None, setter=None, get_format='', retries=0,
+    def __init__(self, getter=None, setter=None, extract='', retries=0,
                  checks=None, discard=None):
         self._getter = getter
         self._setter = setter
@@ -89,7 +90,7 @@ class Feature(property):
         self._proxies = ()
         self.creation_kwargs = {'getter': getter, 'setter': setter,
                                 'retries': retries, 'checks': checks,
-                                'get_format': get_format, 'discard': discard}
+                                'extract': extract, 'discard': discard}
 
         super(Feature,
               self).__init__(self._get if getter is not None else None,
@@ -107,7 +108,12 @@ class Feature(property):
             self._discard = discard
             self.modify_behavior('post_set', self.discard_cache,
                                  ('discard', 'append'), True)
-        if get_format:
+
+        if extract:
+            if isinstance(extract, Parser):
+                self._parser = extract
+            else:
+                self._parser = Parser(extract)
             self.modify_behavior('post_get', self.extract,
                                  ('extract', 'prepend'), True)
         self.name = ''
@@ -278,10 +284,10 @@ class Feature(property):
             instance.discard_limits(self._discard['limits'])
 
     def extract(self, instance, value):
+        """Extract the return value using the extract value.
+
         """
-        """
-        # TODO implement
-        return value
+        return self._parser(value)
 
     def clone(self):
         """Clone the Feature by copying all the local attributes and instance
@@ -304,7 +310,7 @@ class Feature(property):
         return p
 
     def make_doc(self, doc):
-        """Build a comprehensive docstring from the procided user doc and using
+        """Build a comprehensive docstring from the provided user doc and using
         the configuration of the feature.
 
         """

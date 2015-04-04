@@ -26,8 +26,8 @@ class Mapping(Feature):
     """
     def __init__(self, getter=None, setter=None, mapping=None, get_format='',
                  retries=0, checks=None, discard=None):
-        super(Mapping, self).__init__(getter, setter, get_format, retries,
-                                      checks, discard)
+        Feature.__init__(self, getter, setter, get_format, retries,
+                         checks, discard)
 
         mapping = mapping if mapping else {}
         self._map = mapping
@@ -61,8 +61,8 @@ class Bool(Mapping):
     """
     def __init__(self, getter=None, setter=None, mapping=None, aliases=None,
                  get_format='', retries=0, checks=None, discard=None, ):
-        super(Bool, self).__init__(getter, setter, mapping, get_format,
-                                   retries, checks, discard)
+        Mapping.__init__(self, getter, setter, mapping, get_format,
+                         retries, checks, discard)
 
         self._aliases = {True: True, False: False}
         if aliases:
