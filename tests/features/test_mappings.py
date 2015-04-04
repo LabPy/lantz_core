@@ -24,6 +24,15 @@ def test_mapping():
     assert m.pre_set(None, 'Off') == 2
 
 
+def test_mapping_asymetric():
+    m = Mapping(mapping=({'On': 'ON', 'Off': 'OFF'}, {'1': 'On', '0': 'Off'}))
+    assert m.post_get(None, '1') == 'On'
+    assert m.post_get(None, '0') == 'Off'
+
+    assert m.pre_set(None, 'On') == 'ON'
+    assert m.pre_set(None, 'Off') == 'OFF'
+
+
 def test_bool():
     b = Bool(mapping={True: 1, False: 2},
              aliases={True: ['On', 'on', 'ON'], False: ['Off', 'off', 'OFF']})
