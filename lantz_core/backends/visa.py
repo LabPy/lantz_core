@@ -18,6 +18,8 @@ from future.builtins import str
 
 try:
     from pyvisa.highlevel import ResourceManager
+    from pyvisa.rname import (assemble_canonical_name,
+                              ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
     from pyvisa import constants
     from pyvisa import errors
 except ImportError:
@@ -73,50 +75,6 @@ def set_visa_resource_manager(rm, backend='@ni'):
         _RESOURCE_MANAGER[backend] = rm
 
 
-def assemble_resource_name(connection_infos):
-    """Build the ressource name using the provided connection infos.
-
-    """
-    if 'type' not in connection_infos:
-        raise ValueError('No connection type was provided')
-
-    ct = connection_infos['type']
-    rn = ct
-
-    # Check for a board number.
-    if ct in ('USB', 'GPIB', 'TCPIP', 'PXI'):
-        rn += '{}::'.format(connection_infos.get('board', 0))
-
-    # Add the address.
-    if 'address' not in connection_infos:
-        raise ValueError('No connection address was provided')
-    rn += str(connection_infos['address']) + '::'
-
-    # Check for TCPIP specififcs.
-    if ct == 'TCPIP':
-        rn += '{}::'.format(connection_infos.get('hostname', 'inst0'))
-
-    # Handle connection mode.
-    if 'mode' not in connection_infos:
-        rn += 'INSTR'
-        return rn
-
-    mode = connection_infos['mode']
-
-    if mode in ('INSTR', 'RAW'):
-        rn += mode
-        return rn
-
-    elif mode == 'SOCKET':
-        if 'port' not in connection_infos:
-            raise ValueError('No port was provided for a socket connection.')
-        rn += '{}::SOCKET'.format(connection_infos['port'])
-        return rn
-
-    else:
-        raise ValueError('Unsupported mode : {}'.format(mode))
-
-
 class BaseVisaDriver(BaseDriver):
     """Base class for instrument communicating through the VISA protocol.
 
@@ -138,11 +96,9 @@ class BaseVisaDriver(BaseDriver):
 
         In the second case other entries can be :
             - backend : the pyvisa backend to use ('@ni', '@sim', '@py')
-            - board : the board number if applicable.
-            - mode : Mode of connection (INSTR, RAW, SOCKET). If absent INSTR
-                     will be assumed.
-            - hostname : TCPIP only.
-            - port : TCPIP RAW mode only.
+            - any specifications concerning the connection (those depends on
+              the type of connections, please see PyVisa documentation for
+              more details).
             - para : a dict to alter the driver attributes.
 
         If some values are not provided the framework will give them default
@@ -217,7 +173,7 @@ class BaseVisaDriver(BaseDriver):
         """
         if 'resource_name' not in connection_infos:
             connection_infos['resource_name'] =\
-                assemble_resource_name(connection_infos)
+                assemble_canonical_name(**connection_infos)
 
         return connection_infos['resource_name']
 
@@ -238,7 +194,10 @@ class BaseVisaDriver(BaseDriver):
         Parameters
         ----------
         instrument_type : str, {'ASRL', 'USB', 'TCPIP', 'GPIB', 'PXI'}
-        esource_type : str, {'INSTR', 'SOCKET', 'RAW'}
+            Type of connection.
+
+        resource_type : str, {'INSTR', 'SOCKET', 'RAW'}
+            Type of ressource.
 
         Returns
         -------
@@ -541,7 +500,7 @@ class VisaMessageDriver(BaseVisaDriver):
                             board, backend, caching_allowed, **kwargs)
 
     @classmethod
-    def via_serial(cls, port, backend='@ni', caching_allowed=True, **kwargs):
+    def via_serial(cls, board, backend='@ni', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying ASRL (Serial) Instrument resource.
 
         Parameters
@@ -560,13 +519,13 @@ class VisaMessageDriver(BaseVisaDriver):
         driver : VisaMessageDriver
 
         """
-        resource_name = 'ASRL{}::INSTR'.format(port)
-        return cls({'resource_name': resource_name, 'para': kwargs},
+        resource_name = ASRLInstr(board=board)
+        return cls({'resource_name': str(resource_name), 'para': kwargs},
                    caching_allowed)
 
     @classmethod
-    def via_tcpip(cls, hostaddress, hostname='', board=0, backend='@ni',
-                  caching_allowed=True, **kwargs):
+    def via_tcpip(cls, host_address, lan_device_name='inst0', board=0,
+                  backend='@ni', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying TCP Instrument resource.
 
         Parameters
@@ -589,17 +548,14 @@ class VisaMessageDriver(BaseVisaDriver):
         driver: VisaMessageDriver
 
         """
-        if hostname:
-            re_str = 'TCPIP{}::{}::{}::INSTR'
-            resource_name = re_str.format(board, hostaddress, hostname)
-        else:
-            re_str = 'TCPIP{}::{}::INSTR'
-            resource_name = re_str.format(board, hostaddress)
-        return cls({'resource_name': resource_name, 'para': kwargs},
+        rname = TCPIPInstr(**{'host_address': host_address,
+                              'lan_device_name': lan_device_name,
+                              'board': board})
+        return cls({'resource_name': str(rname), 'para': kwargs},
                    caching_allowed)
 
     @classmethod
-    def via_tcpip_socket(cls, hostaddress, port, hostname='', board=0,
+    def via_tcpip_socket(cls, host_address, port, board=0,
                          backend='@ni', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying TCP Socket resource.
 
@@ -625,13 +581,10 @@ class VisaMessageDriver(BaseVisaDriver):
         driver : VisaMessageDriver
 
         """
-        if hostname:
-            re_str = 'TCPIP{}::{}::{}::{}::SOCKET'
-            resource_name = re_str.format(board, hostaddress, hostname, port)
-        else:
-            re_str = 'TCPIP{}::{}::{}::SOCKET'
-            resource_name = re_str.format(board, hostaddress)
-        return cls({'resource_name': resource_name, 'para': kwargs},
+        rname = TCPIPSocket(**{'host_address': host_address,
+                               'port': port,
+                               'board': board})
+        return cls({'resource_name': str(rname), 'para': kwargs},
                    caching_allowed)
 
     @classmethod
@@ -657,8 +610,8 @@ class VisaMessageDriver(BaseVisaDriver):
         driver : VisaMessageDriver
 
         """
-        resource_name = 'GPIB::{}::INSTR'.format(address)
-        return cls({'resource_name': resource_name, 'para': kwargs},
+        rname = GPIBInstr(board=board, address=address)
+        return cls({'resource_name': str(rname), 'para': kwargs},
                    caching_allowed)
 
     # --- Pyvisa wrappers -----------------------------------------------------
