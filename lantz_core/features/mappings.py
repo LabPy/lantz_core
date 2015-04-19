@@ -20,18 +20,26 @@ class Mapping(Feature):
 
     Parameters
     ----------
-    mapping : dict
-        Mapping between the user values and instrument values.
+    mapping : dict or tuple
+        Mapping between the user values and instrument values. If a tuple is
+        provided the first element should be the mapping between user values
+        and instrument input, the second between instrument output and user
+        values. This allows to handle asymetric case in which the instrument
+        expect a command (ex: CMD ON) but when queried return 1.
 
     """
     def __init__(self, getter=None, setter=None, mapping=None, get_format='',
                  retries=0, checks=None, discard=None):
-        super(Mapping, self).__init__(getter, setter, get_format, retries,
-                                      checks, discard)
+        Feature.__init__(self, getter, setter, get_format, retries,
+                         checks, discard)
 
         mapping = mapping if mapping else {}
-        self._map = mapping
-        self._imap = {v: k for k, v in mapping.items()}
+        if isinstance(mapping, (tuple, list)):
+            self._map = mapping[0]
+            self._imap = mapping[1]
+        else:
+            self._map = mapping
+            self._imap = {v: k for k, v in mapping.items()}
         self.creation_kwargs['mapping'] = mapping
 
         self.modify_behavior('post_get', self.reverse_map_value,
@@ -61,8 +69,8 @@ class Bool(Mapping):
     """
     def __init__(self, getter=None, setter=None, mapping=None, aliases=None,
                  get_format='', retries=0, checks=None, discard=None, ):
-        super(Bool, self).__init__(getter, setter, mapping, get_format,
-                                   retries, checks, discard)
+        Mapping.__init__(self, getter, setter, mapping, get_format,
+                         retries, checks, discard)
 
         self._aliases = {True: True, False: False}
         if aliases:

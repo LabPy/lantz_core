@@ -12,6 +12,7 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from pytest import raises
+from stringparser import Parser
 
 from lantz_core.features.feature import Feature
 from lantz_core.features.util import PostGetComposer
@@ -142,8 +143,16 @@ def test_modify_behavior2():
     assert (feat._customs['post_get']['custom'][0].__func__._feat_wrapped_ ==
             meth)
 
-# Other behaviors are tested by the tests in test_has_features.py
 
-
+# Test extracting a value, when extract is a string
 def test_extract():
-    pass
+
+    feat = Feature(extract='The value is {:d}')
+    val = feat.post_get(None, 'The value is 11')
+    assert val == 11
+
+    feat = Feature(extract=Parser('The value is {:d}'))
+    val = feat.post_get(None, 'The value is 11')
+    assert val == 11
+
+# Other behaviors are tested by the tests in test_has_features.py

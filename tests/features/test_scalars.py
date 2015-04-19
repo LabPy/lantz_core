@@ -33,6 +33,10 @@ class TestInt(object):
         i = Int()
         assert i.post_get(None, '11') == 11
 
+    def test_post_get_with_extract(self):
+        i = Int(extract='This is the value {}')
+        assert i.post_get(None, 'This is the value 11') == 11
+
     def test_with_values(self):
         i = Int(setter=True, values=(1, 2, 3))
         assert i.pre_set(None, 2) == 2
@@ -74,11 +78,22 @@ class TestFloat(object):
         f = Float()
         assert f.post_get(None, '0.1') == 0.1
 
+    def test_post_with_extract(self):
+        f = Float(extract='This is the value {}')
+        assert f.post_get(None, 'This is the value 1.1') == 1.1
+
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_post_get_with_unit(self):
         f = Float(unit='V')
         assert hasattr(f.post_get(None, 0.1), 'magnitude')
         assert f.post_get(None, 0.1).to('mV').magnitude == 100.
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_post_get_with_extract_and_unit(self):
+        f = Float(unit='V', extract='This is the value {}')
+        val = f.post_get(None, 'This is the value 0.1')
+        assert hasattr(val, 'magnitude')
+        assert val.to('mV').magnitude == 100.
 
     def test_with_values(self):
         f = Float(setter=True, values=(1.0, 2.4, 3.1))
