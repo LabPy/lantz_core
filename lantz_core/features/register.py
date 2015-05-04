@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    lantz_core.features.mappings
+    lantz_core.features.register
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Module defining a Feature used to deal with 8-bits binary register.

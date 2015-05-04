@@ -27,6 +27,8 @@ except ImportError:
     logger.warn('The PyVISA library is necessary to use the visa backend')
 
 from ..base_driver import BaseDriver
+from ..util import byte_to_dict
+from ..action import Action
 from ..errors import InterfaceNotSupported, TimeoutError
 
 
@@ -319,6 +321,11 @@ class VisaMessageDriver(BaseVisaDriver):
     #: Can provide a tuple/list to indicate multiple models.
     #: :type: str | list | tuple | None
     MODEL_CODE = None
+
+    # TODO looks for standard meaning.
+    @Action()
+    def read_status_byte(self):
+        return byte_to_dict(self._resource.read_stb(), range(8))
 
     def default_get_feature(self, iprop, cmd, *args, **kwargs):
         """Query the value using the provided command.
@@ -734,11 +741,6 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         self._resource.assert_trigger()
-
-    # XXXXXX
-    @Action
-    def read_status_byte(self, iprop):
-        return self._resource.read_stb()
 
 
 class VisaRegisterDriver(BaseVisaDriver):

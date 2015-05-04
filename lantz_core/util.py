@@ -3,6 +3,8 @@
     lantz_core.util
     ~~~~~~~~~~~~~~~
 
+    Collection of utility functions.
+
     :copyright: 2015 by Lantz Authors, see AUTHORS for more details.
     :license: BSD, see LICENSE for more details.
 
