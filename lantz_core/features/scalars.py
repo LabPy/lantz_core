@@ -13,57 +13,30 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 # Used to get a 2/3 independent unicode conversion.
 from future.builtins import str as ustr
-from future.utils import istext
-from inspect import cleandoc
 
-from .feature import Feature
-from ..limits import AbstractLimitsValidator
+from .enumerable import Enumerable
+from .limits_validated import LimitsValidated
+from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
 
 
-class Enumerable(Feature):
-    """ Validate the set value against a finite set of allowed ones.
-
-    Parameters
-    ----------
-    values : iterable, optional
-        Permitted values for the property.
-
-    """
-    def __init__(self, getter=None, setter=None, values=(), extract='',
-                 retries=0, checks=None, discard=None):
-        Feature.__init__(self, getter, setter, extract, retries, checks,
-                         discard)
-        self.values = set(values)
-        self.creation_kwargs['values'] = values
-
-        if values:
-            self.modify_behavior('pre_set', self.validate_in,
-                                 ('validate', 'append'), True)
-
-    def validate_in(self, driver, value):
-        """Check the provided values is in the supported values.
-
-        """
-        if value not in self.values:
-            mess = 'Allowed value for {} are {}, {} not allowed'
-            raise ValueError(mess.format(self.name, self.values, value))
-
-        return value
-
-
-class Unicode(Enumerable):
+class Unicode(Mapping, Enumerable):
     """ Feature casting the instrument answer to a unicode, support
     enumeration.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), extract='',
-                 retries=0, checks=None, discard=None):
-        Enumerable.__init__(self, getter, setter, values, extract,
-                            retries, checks, discard)
+    def __init__(self, getter=None, setter=None, values=(), mapping=None,
+                 extract='', retries=0, checks=None, discard=None):
+
+        if mapping:
+            Mapping.__init__(self, getter, setter, mapping, extract,
+                             retries, checks, discard)
+        else:
+            Enumerable.__init__(self, getter, setter, values, extract,
+                                retries, checks, discard)
 
         self.modify_behavior('post_get', self.cast_to_unicode,
                              ('cast_to_unicode', 'append'), True)
@@ -72,83 +45,19 @@ class Unicode(Enumerable):
         return ustr(value)
 
 
-class LimitsValidated(Feature):
-    """ Feature checking the given value respects the limits before setting.
-
-    Parameters
-    ----------
-    range : LimitsValidator or str
-        If a LimitsValidator is provided it is used as is, if a string is
-        provided it is used to retrieve the range from the driver at runtime.
-
-    """
-    def __init__(self, getter=None, setter=None, limits=None, extract='',
-                 retries=0, checks=None, discard=None):
-        Feature.__init__(self, getter, setter, extract, retries, checks,
-                         discard)
-        if limits:
-            if isinstance(limits, AbstractLimitsValidator):
-                self.limits = limits
-                validate = self.validate_limits
-            elif istext(limits):
-                self.limits_id = limits
-                validate = self.get_limits_and_validate
-            else:
-                mess = cleandoc('''The range kwarg should either be a range
-                    validator or a string used to retrieve the range through
-                    get_range''')
-                raise TypeError(mess)
-
-            self.modify_behavior('pre_set', validate, ('validate', 'append'),
-                                 True)
-
-        self.creation_kwargs['range'] = range
-
-    def validate_limits(self, obj, value):
-        """Make sure a value is in the given range.
-
-        This method is meant to be used as a pre-set.
-
-        """
-        if not self.limits.validate(value):
-            self.raise_limits_error(value)
-        else:
-            return value
-
-    def get_limits_and_validate(self, obj, value):
-        """Query the current range from the driver and validate the values.
-
-        This method is meant to be used as a pre-set.
-
-        """
-        self.limits = obj.get_limits(self.limits_id)
-        return self.validate_limits(obj, value)
-
-    def raise_limits_error(self, value):
-        """Raise a value when the limits validation fails.
-
-        """
-        mess = 'The provided value {} is out of bound for {}.'
-        mess = mess.format(value, self.name)
-        lim = self.limits
-        if lim.minimum:
-            mess += ' Minimum {}.'.format(lim.minimum)
-        if lim.maximum:
-            mess += ' Maximum {}.'.format(lim.maximum)
-        if lim.step:
-            mess += ' Step {}.'.format(lim.step)
-        raise ValueError(mess)
-
-
-class Int(LimitsValidated, Enumerable):
+class Int(LimitsValidated, Mapping, Enumerable):
     """ Property casting the instrument answer to an int.
 
     Support enumeration or range validation (the range takes precedence).
 
     """
-    def __init__(self, getter=None, setter=None, values=(), limits=None,
-                 extract='', retries=0, checks=None, discard=None):
-        if values and not limits:
+    def __init__(self, getter=None, setter=None, values=(), mapping=None,
+                 limits=None, extract='', retries=0, checks=None,
+                 discard=None):
+        if mapping:
+            Mapping.__init__(self, getter, setter, mapping, extract,
+                             retries, checks, discard)
+        elif values and not limits:
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:
@@ -165,16 +74,19 @@ class Int(LimitsValidated, Enumerable):
         return int(value)
 
 
-class Float(LimitsValidated, Enumerable):
+class Float(LimitsValidated, Mapping, Enumerable):
     """ Property casting the instrument answer to a float or Quantity.
 
     Support range validation and unit conversion.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), limits=None,
-                 unit=None, extract='', retries=0, checks=None,
+    def __init__(self, getter=None, setter=None, values=(), mapping=None,
+                 limits=None, unit=None, extract='', retries=0, checks=None,
                  discard=None):
-        if values and not limits:
+        if mapping:
+            Mapping.__init__(self, getter, setter, mapping, extract,
+                             retries, checks, discard)
+        elif values and not limits:
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:

@@ -12,7 +12,8 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
-from lantz_core.features.mappings import Mapping, Bool
+from lantz_core.features.mapping import Mapping
+from lantz_core.features.bool import Bool
 
 
 def test_mapping():
