@@ -286,7 +286,8 @@ class BaseVisaDriver(BaseDriver):
         return self._resource.interface_type
 
     def clear(self):
-        """Clears this resource
+        """Clears this resource.
+
         """
         self._resource.clear()
 
@@ -322,10 +323,19 @@ class VisaMessageDriver(BaseVisaDriver):
     #: :type: str | list | tuple | None
     MODEL_CODE = None
 
-    # TODO looks for standard meaning.
+    #: Meaning of the status byte.
+    STATUS_BYTE = (0,
+                   1,
+                   2,
+                   3,
+                   'Message available',
+                   'Event status',
+                   'Request',
+                   7)
+
     @Action()
     def read_status_byte(self):
-        return byte_to_dict(self._resource.read_stb(), range(8))
+        return byte_to_dict(self._resource.read_stb(), self.STATUS_BYTE)
 
     def default_get_feature(self, iprop, cmd, *args, **kwargs):
         """Query the value using the provided command.
