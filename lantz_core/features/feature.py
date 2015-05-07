@@ -487,6 +487,7 @@ class Feature(property):
             self.modify_behavior('pre_set', self.set_check,
                                  ('checks', 'prepend'), True)
 
+    # XXXX rework to provide direct acces to driver, and move to util
     def _build_checker(self, check, set=False):
         """Assemble a checker function from the provided assertions.
 
@@ -494,9 +495,7 @@ class Feature(property):
         ----------
         check : unicode
             ; separated string containing boolean test to assert. '{' and '}'
-            delimit field which should be replaced by instrument state. 'value'
-            should be considered a reserved keyword available when checking
-            a set operation.
+            delimit field which should be replaced by instrument state.
 
         Returns
         -------
