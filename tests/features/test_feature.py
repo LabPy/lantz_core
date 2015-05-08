@@ -81,9 +81,10 @@ def test_feature_checkers():
 
         aux = 1
         feat = Feature(True)
-        feat_ch = Feature(True, True, checks='{aux}==1; {feat} is True')
-        feat_gch = Feature(True, True, checks=('{aux}==1', None))
-        feat_sch = Feature(True, True, checks=(None, '{aux}==1'))
+        feat_ch = Feature(True, True,
+                          checks='driver.aux==1; driver.feat is True')
+        feat_gch = Feature(True, True, checks=('driver.aux==1', None))
+        feat_sch = Feature(True, True, checks=(None, 'driver.aux==1'))
 
     assert hasattr(AuxParent.feat_ch, 'get_check')
     assert hasattr(AuxParent.feat_ch, 'set_check')
@@ -115,7 +116,7 @@ def test_feature_checkers():
 
 def test_clone():
 
-    feat_ch = Feature(True, True, checks='{aux}==1; {feat} is True')
+    feat_ch = Feature(True, True, checks='driver.aux==1; driver.feat is True')
     new = feat_ch.clone()
     assert feat_ch.pre_get is not new.pre_get
     assert feat_ch._customs is not new._customs

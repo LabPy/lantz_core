@@ -12,12 +12,12 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from types import MethodType
-from future.utils import exec_
 from collections import OrderedDict
 from stringparser import Parser
 
 from .util import wrap_custom_feat_method, MethodsComposer, COMPOSERS
 from ..errors import LantzError
+from ..util import build_checker
 
 
 class Feature(property):
@@ -471,15 +471,18 @@ class Feature(property):
         check_set.
 
         """
-        build = self._build_checker
-        if len(checks) == 2:
-            if checks[0]:
-                self.get_check = MethodType(build(checks[0]), self)
-            if checks[1]:
-                self.set_check = MethodType(build(checks[1], True), self)
-        else:
-            self.get_check = MethodType(build(checks), self)
-            self.set_check = MethodType(build(checks, True), self)
+        build = build_checker
+        if len(checks) != 2:
+            checks = (checks, checks)
+
+        if checks[0]:
+            self.get_check = MethodType(build(checks[0], '(self, driver)'),
+                                        self)
+        if checks[1]:
+            self.set_check = MethodType(build(checks[1],
+                                              '(self, driver, value)',
+                                              'value'),
+                                        self)
 
         if hasattr(self, 'get_check'):
             self.modify_behavior('pre_get', self.get_check,
@@ -488,62 +491,7 @@ class Feature(property):
             self.modify_behavior('pre_set', self.set_check,
                                  ('checks', 'prepend'), True)
 
-    # XXXX rework to provide direct acces to driver, and move to util
     def _get(self, driver):
-        """Assemble a checker function from the provided assertions.
-
-        Parameters
-        ----------
-        check : unicode
-            ; separated string containing boolean test to assert. '{' and '}'
-            delimit field which should be replaced by instrument state.
-
-        Returns
-        -------
-        checker : function
-            Function to use
-
-        """
-        func_def = 'def check(self, instance):\n' if not set\
-            else 'def check(self, instance, value):\n'
-        assertions = check.split(';')
-        for assertion in assertions:
-            # First find replacement fields.
-            aux = assertion.split('{')
-            if len(aux) < 2:
-                # Silently ignore checks unrelated to instrument state.
-                continue
-            line = 'assert '
-            els = [el.strip() for s in aux for el in s.split('}')]
-            for i in range(0, len(els), 2):
-                e = els[i]
-                if i+1 < len(els):
-                    line += e + ' getattr(instance, "{}") '.format(els[i+1])
-                else:
-                    line += e
-            values = ', '.join(('getattr(instance,  "{}")'.format(el)
-                                for el in els[1::2]))
-
-            val_fmt = ', '.join(('{}'.format(el)+'={}' for el in els[1::2]))
-            a_mess = 'assertion {} failed, '.format(' '.join(els).strip())
-            a_mess += 'values are : {}".format(self.name, {})'.format(val_fmt,
-                                                                      values)
-
-            if set:
-                a_mess = '"Setting {} ' + a_mess
-            else:
-                a_mess = '"Getting {} ' + a_mess
-
-            func_def += '    ' + line + ', ' + a_mess + '\n'
-
-        if set:
-            func_def += '    return value'
-
-        loc = {}
-        exec_(func_def, globals(), loc)
-        return loc['check']
-
-    def _get(self, instance):
         """Getter defined when the user provides a value for the get arg.
 
         """
