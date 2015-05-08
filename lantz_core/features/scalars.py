@@ -44,7 +44,7 @@ class Enumerable(Feature):
             self.modify_behavior('pre_set', self.validate_in,
                                  ('validate', 'append'), True)
 
-    def validate_in(self, instance, value):
+    def validate_in(self, driver, value):
         """Check the provided values is in the supported values.
 
         """
@@ -68,7 +68,7 @@ class Unicode(Enumerable):
         self.modify_behavior('post_get', self.cast_to_unicode,
                              ('cast_to_unicode', 'append'), True)
 
-    def cast_to_unicode(self, instance, value):
+    def cast_to_unicode(self, driver, value):
         return ustr(value)
 
 
@@ -158,7 +158,7 @@ class Int(LimitsValidated, Enumerable):
         self.modify_behavior('post_get', self.cast_to_int,
                              ('cast', 'append'), True)
 
-    def cast_to_int(self, instance, value):
+    def cast_to_int(self, driver, value):
         """Cast the value returned by the instrument to an int.
 
         """
@@ -199,7 +199,7 @@ class Float(LimitsValidated, Enumerable):
         self.modify_behavior('post_get', self.cast_to_float,
                              ('cast', 'append'), True)
 
-    def cast_to_float(self, instance, value):
+    def cast_to_float(self, driver, value):
         """Cast the value returned by the instrument to float or Quantity.
 
         """
@@ -210,7 +210,7 @@ class Float(LimitsValidated, Enumerable):
         else:
             return fval
 
-    def convert(self, instance, value):
+    def convert(self, driver, value):
         """Convert unit.
 
         """

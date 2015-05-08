@@ -58,23 +58,23 @@ class SubSystem(with_metaclass(DeclarationMeta, HasFeatures)):
         """
         self.parent.reopen_connection()
 
-    def default_get_feature(self, iprop, cmd, *args, **kwargs):
+    def default_get_feature(self, feat, cmd, *args, **kwargs):
         """Subsystems simply pipes the call to their parent.
 
         """
-        return self.parent.default_get_feature(iprop, cmd, *args, **kwargs)
+        return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
-    def default_set_feature(self, iprop, cmd, *args, **kwargs):
+    def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Subsystems simply pipes the call to their parent.
 
         """
-        return self.parent.default_set_feature(iprop, cmd, *args, **kwargs)
+        return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
 
-    def default_check_operation(self, iprop, value, i_value, response):
+    def default_check_operation(self, feat, value, i_value, response):
         """Subsystems simply pipes the call to their parent.
 
         """
-        return self.parent.default_check_operation(iprop, value, i_value,
+        return self.parent.default_check_operation(feat, value, i_value,
                                                    response)
 
 AbstractSubSystem.register(SubSystem)

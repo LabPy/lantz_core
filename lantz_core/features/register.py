@@ -58,7 +58,7 @@ class Register(Feature):
         self.modify_behavior('pre_set', self.dict_to_byte,
                              ('dict_to_byte', 'append'), True)
 
-    def byte_to_dict(self, instance, value):
+    def byte_to_dict(self, driver, value):
         """Convert the byte returned by the instrument to a dict.
 
         """
@@ -71,7 +71,7 @@ class Register(Feature):
                            for i, n in enumerate(self.names)
                            if n is not None)
 
-    def dict_to_byte(self, instance, value):
+    def dict_to_byte(self, driver, value):
         """Convert a dict into a byte value.
 
         """

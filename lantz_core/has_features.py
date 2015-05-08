@@ -42,7 +42,7 @@ LIMITS_PREFIX = '_limits_'
 
 
 class set_feat(object):
-    """Placeholder use to alter a feature in a subclass.
+    """Placeholder used to alter a feature in a subclass.
 
     This can be used to lightly alter a Feature defined on a parent class
     by for example changing the retries or the getter but without
@@ -411,9 +411,9 @@ class HasFeaturesMeta(type):
                     and issubclass(base, AbstractHasFeatures):
                 base_feats.update(base.__feats__)
 
-        # The set of iprops which live on this class as opposed to a
+        # The set of features which live on this class as opposed to a
         # base class. This enables the code which hooks up the various
-        # static behaviours to only clone a iprops when necessary.
+        # static behaviours to only clone a feature when necessary.
         owned_feats = set(feats.keys())
 
         all_feats = dict(base_feats)
@@ -475,14 +475,11 @@ class HasFeaturesMeta(type):
 
 
 class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
-    """ Base class for objects using the IProperties mechanisms.
+    """Base class for objects using the Features mechanisms.
 
     """
-    #: Tuple of iproperties names which shoulb be cached by default.
-    caching_permissions = ()
-
     #: Tuple of exception to consider when securing a communication (either via
-    #: secure_communication decorator or for iproperties with a non zero
+    #: secure_communication decorator or for features with a non zero
     #: retries value)
     retries_exceptions = ()
 
@@ -518,7 +515,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
 
         Returns
         -------
-        iprop : Feature
+        feat : Feature
             Matching Feature object
 
         """
@@ -699,12 +696,12 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             '''This method is used to reopen a connection whose state
             is suspect, for example the last message sent did not
             go through, and should be implemented by classes
-            subclassing HasIProps'''),
+            subclassing HasFeatures'''),
             80)
         raise NotImplementedError(message)
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
-        """Method used by default by the IProperty to retrieve a value from an
+        """Method used by default by the Feature to retrieve a value from an
         instrument.
 
         Parameters
@@ -727,7 +724,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         raise NotImplementedError(mess)
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
-        """Method used by default by the IProperty to set an instrument value.
+        """Method used by default by the Feature to set an instrument value.
 
         Parameters
         ----------
@@ -749,7 +746,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         raise NotImplementedError(mess)
 
     def default_check_operation(self, feat, value, i_value, state=None):
-        """Method used by default by the IProperty to check the instrument
+        """Method used by default by the Feature to check the instrument
         operation.
 
         Parameters
