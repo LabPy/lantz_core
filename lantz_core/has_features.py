@@ -71,6 +71,33 @@ class set_feat(object):
         return new
 
 
+class set_action(object):
+    """Placeholder used to alter an action in a subclass.
+
+    This can be used to lightly alter an Action defined on a parent class.
+
+    Parameters
+    ----------
+    **kwargs
+        New keyword arguments to pass to the constructor to alter the Action.
+
+    """
+    def __init__(self, **kwargs):
+        self.custom_attrs = kwargs
+
+    def customize(self, action):
+        """Customize an action using the given kwargs.
+
+        """
+        cls = type(action)
+        kwargs = action.kwargs.copy()
+        kwargs.update(self.custom_attrs)
+        new = cls(**kwargs)
+
+        new(action.func)
+
+        return new
+
 # Sentinel returned when decorating a method with a subpart.
 SUBPART_FUNC = object()
 
@@ -281,6 +308,7 @@ class HasFeaturesMeta(type):
                       'post_set': []     # Post set methods: _post_set_*
                       }
         feat_paras = {}                  # Sentinels changing feats behavior.
+        action_paras = {}                # Sentinels changing actions behavior.
         limits = []                      # Names of the defined limits.
 
         # List of the entries to remove from the class because they are
@@ -307,6 +335,9 @@ class HasFeaturesMeta(type):
             elif isinstance(value, set_feat):
                 feat_paras[key] = value
 
+            elif isinstance(value, set_action):
+                action_paras[key] = value
+
             elif isinstance(value, FunctionType):
                 startswith = key.startswith
                 if startswith(POST_GET_PREFIX):
@@ -325,7 +356,7 @@ class HasFeaturesMeta(type):
                     limits.append(key)
 
         # Clean up class dictionary.
-        for k in chain(feat_paras, to_remove, subparts):
+        for k in chain(feat_paras, action_paras, to_remove, subparts):
             del dct[k]
 
         # Create the class object.
@@ -456,6 +487,10 @@ class HasFeaturesMeta(type):
 
         for prefix, attr in CUSTOMIZABLE:
             customize_feats(cls, cust_feats[attr], prefix, attr)
+
+        for k, v in action_paras.items():
+            action = v.customize(getattr(cls, k))
+            setattr(cls, k, action)
 
         # Put a reference to the features dict on the class. This is used
         # by HasFeaturesMeta to query for the features.
