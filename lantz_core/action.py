@@ -42,7 +42,7 @@ class Action(object):
 
     checks : unicode, optional
         Booelan tests to execute before calling the function. Multiple
-        assertions can be separated with ';'. All the methods arument are
+        assertions can be separated with ';'. All the methods argument are
         available in the assertion execution namespace so one can access to the
         driver using self and to the arguments using their name (the signature
         of the wrapper is made to match the signature of the wrapped method).
