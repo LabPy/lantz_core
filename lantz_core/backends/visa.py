@@ -746,6 +746,7 @@ class VisaMessageDriver(BaseVisaDriver):
                                                   is_big_endian, container,
                                                   delay, header_fmt)
 
+    @Action()
     def assert_trigger(self):
         """Sends a software trigger to the device.
 
