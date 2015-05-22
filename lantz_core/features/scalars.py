@@ -18,6 +18,7 @@ from .enumerable import Enumerable
 from .limits_validated import LimitsValidated
 from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT
+from ..util import raise_limits_error
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
@@ -142,6 +143,6 @@ class Float(LimitsValidated, Mapping, Enumerable):
 
         """
         if not self.limits.validate(value, self.unit):
-            self.raise_limits_error(value)
+            raise_limits_error(self.name, value, self.limits)
         else:
             return value

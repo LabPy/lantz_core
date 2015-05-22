@@ -13,6 +13,7 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
 from .feature import Feature
+from ..util import validate_in
 
 
 class Enumerable(Feature):
@@ -35,12 +36,8 @@ class Enumerable(Feature):
             self.modify_behavior('pre_set', self.validate_in,
                                  ('validate', 'append'), True)
 
-    def validate_in(self, instance, value):
+    def validate_in(self, driver, value):
         """Check the provided values is in the supported values.
 
         """
-        if value not in self.values:
-            mess = 'Allowed value for {} are {}, {} not allowed'
-            raise ValueError(mess.format(self.name, self.values, value))
-
-        return value
+        return validate_in(driver, value, self.values, self.name)

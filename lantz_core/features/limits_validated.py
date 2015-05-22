@@ -15,6 +15,7 @@ from future.utils import istext
 from inspect import cleandoc
 
 from .feature import Feature
+from ..util import validate_limits
 from ..limits import AbstractLimitsValidator
 
 
@@ -50,37 +51,19 @@ class LimitsValidated(Feature):
 
         self.creation_kwargs['range'] = range
 
-    def validate_limits(self, obj, value):
+    def validate_limits(self, driver, value):
         """Make sure a value is in the given range.
 
         This method is meant to be used as a pre-set.
 
         """
-        if not self.limits.validate(value):
-            self.raise_limits_error(value)
-        else:
-            return value
+        return validate_limits(driver, value, self.limits, self.name)
 
-    def get_limits_and_validate(self, obj, value):
+    def get_limits_and_validate(self, driver, value):
         """Query the current range from the driver and validate the values.
 
         This method is meant to be used as a pre-set.
 
         """
-        self.limits = obj.get_limits(self.limits_id)
-        return self.validate_limits(obj, value)
-
-    def raise_limits_error(self, value):
-        """Raise a value when the limits validation fails.
-
-        """
-        mess = 'The provided value {} is out of bound for {}.'
-        mess = mess.format(value, self.name)
-        lim = self.limits
-        if lim.minimum:
-            mess += ' Minimum {}.'.format(lim.minimum)
-        if lim.maximum:
-            mess += ' Maximum {}.'.format(lim.maximum)
-        if lim.step:
-            mess += ' Step {}.'.format(lim.step)
-        raise ValueError(mess)
+        self.limits = driver.get_limits(self.limits_id)
+        return self.validate_limits(driver, value)

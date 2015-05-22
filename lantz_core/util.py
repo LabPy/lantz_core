@@ -60,6 +60,7 @@ def validate_in(driver, value, values, name):
     if value not in values:
         mess = 'Allowed value for {} are {}, {} not allowed'
         raise ValueError(mess.format(name, values, value))
+    return value
 
 
 def validate_limits(driver, value, limits, name):
