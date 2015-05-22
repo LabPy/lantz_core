@@ -76,7 +76,7 @@ class Action(object):
     def __get__(self, obj, objtype=None):
         if obj is None:
             return self
-        return MethodType(self.func, obj, objtype)
+        return MethodType(self.func, obj)
 
     def decorate(self, func, kwargs):
         """Decorate a function according to passed arguments.
