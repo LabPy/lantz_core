@@ -48,10 +48,10 @@ class Mapping(Feature):
         self.modify_behavior('pre_set', self.map_value,
                              ('map', 'append'), True)
 
-    def reverse_map_value(self, instance, value):
+    def reverse_map_value(self, driver, value):
         return self._imap[value]
 
-    def map_value(self, instance, value):
+    def map_value(self, driver, value):
         return self._map[value]
 
 
@@ -79,6 +79,6 @@ class Bool(Mapping):
                     self._aliases[v] = k
         self.creation_kwargs['aliases'] = aliases
 
-    def map_value(self, instance, value):
+    def map_value(self, driver, value):
         self._aliases[value]
         return self._map[self._aliases[value]]

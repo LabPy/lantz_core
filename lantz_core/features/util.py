@@ -16,10 +16,10 @@ from functools import update_wrapper
 
 
 def wrap_custom_feat_method(meth, feat):
-    """ Wrap a HasFeature method to make it an instance method of a Feature.
+    """ Wrap a HasFeature method to make it an driver method of a Feature.
 
     This is necessary so that users can define overriding method in a natural
-    way in the HasFeatures subclass assuming that the instance object will be
+    way in the HasFeatures subclass assuming that the driver object will be
     passed as first argument and the Feature object as second when in reality
     it will be the other way round due to python binding mechanism.
 
@@ -48,8 +48,8 @@ def wrap_custom_feat_method(meth, feat):
 
     # Wrap if necessary the function to match the argument order.
     if not hasattr(meth, '_feat_wrapped_'):
-        def wrapper(iprop, instance, *args, **kwargs):
-            return wrapped(instance, iprop, *args, **kwargs)
+        def wrapper(feat, driver, *args, **kwargs):
+            return wrapped(driver, feat, *args, **kwargs)
 
         update_wrapper(wrapper, wrapped)
         wrapper._feat_wrapped_ = wrapped

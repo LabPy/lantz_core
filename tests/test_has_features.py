@@ -13,9 +13,11 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from pytest import raises
 
-from lantz_core.has_features import subsystem, set_feat, channel, HasFeatures
+from lantz_core.has_features import (subsystem, set_feat, channel, HasFeatures,
+                                     set_action)
 from lantz_core.subsystem import SubSystem
 from lantz_core.channel import Channel
+from lantz_core.action import Action
 from lantz_core.features.feature import Feature
 from lantz_core.features.util import (append, prepend, add_after, add_before,
                                       replace)
@@ -188,7 +190,7 @@ def test_clone_if_needed():
 
 class ToCustom(DummyParent):
 
-    feat = Feature(getter=True, checks='{aux} is True')
+    feat = Feature(getter=True, checks='driver.aux is True')
 
     def __init__(self):
         super(ToCustom, self).__init__()
@@ -402,6 +404,28 @@ def test_copying_custom_behavior3():
     driver.aux = False
     driver.feat
     assert driver.custom_called == 3
+
+
+# --- Test customizing Action -------------------------------------------------
+
+def test_set_action():
+    """Test customizing an action using set_action.
+
+    """
+    class C1(DummyParent):
+
+        @Action()
+        def test(self, c):
+            return c
+
+    class C2(C1):
+
+        test = set_action(values={'c': (1, 2)})
+
+    assert not C1().test(0)
+    assert C2().test(1)
+    with raises(ValueError):
+        assert C2().test(0)
 
 
 # --- Test declaring subsystems -----------------------------------------------

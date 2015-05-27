@@ -51,6 +51,6 @@ language to wrap existing drivers and DLLs.''',
                 'lantz_core.features'],
     requires = ['numpy',
                 'future',
-                'pyvisa'],
+                'pyvisa',
+                'funcsigs'],
 )
-

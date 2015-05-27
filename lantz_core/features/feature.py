@@ -12,12 +12,12 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from types import MethodType
-from future.utils import exec_
 from collections import OrderedDict
 from stringparser import Parser
 
 from .util import wrap_custom_feat_method, MethodsComposer, COMPOSERS
 from ..errors import LantzError
+from ..util import build_checker
 
 
 class Feature(property):
@@ -55,9 +55,10 @@ class Feature(property):
         determine how many times to retry.
     checks : unicode or tuple(2)
         Booelan tests to execute before anything else when attempting to get or
-        set an iproperty. Multiple assertion can be separated with ';'.
-        Instrument values can be referred to using the following syntax :
-        {iprop_name}.
+        set a feature. Multiple assertion can be separated with ';'. The
+        driver driver can be accessed under the name driver and in a setter
+        the value under the name value, ie the following assertion is correct:
+        driver.voltage > value
         If a single string is provided it is used to run checks before get and
         set, if a tuple of length 2 is provided the first element is used for
         the get operation, the second for the set operation, None can be used
@@ -73,7 +74,7 @@ class Feature(property):
     Attributes
     ----------
     name : unicode
-        Name of the IProperty. This is set by the HasIProps instance and
+        Name of the Feature. This is set by the HasFeatures driver and
         should not be manipulated by user code.
     creation_kwargs : dict
         Dictionary in which all the creation args should be stored to allow
@@ -118,7 +119,7 @@ class Feature(property):
                                  ('extract', 'prepend'), True)
         self.name = ''
 
-    def pre_get(self, instance):
+    def pre_get(self, driver):
         """Hook to perform checks before querying a value from the instrument.
 
         If anything goes wrong this method should raise the corresponding
@@ -126,13 +127,13 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
 
         """
         pass
 
-    def get(self, instance):
+    def get(self, driver):
         """Acces the parent driver to retrieve the state of the instrument.
 
         By default this method falls back to calling the parent
@@ -141,7 +142,7 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
 
         Returns
@@ -151,9 +152,9 @@ class Feature(property):
             necessary it should be done in the post_get method.
 
         """
-        return instance.default_get_feature(self, self._getter)
+        return driver.default_get_feature(self, self._getter)
 
-    def post_get(self, instance, value):
+    def post_get(self, driver, value):
         """Hook to alter the value returned by the underlying driver.
 
         This can be used to convert the answer from the instrument to a more
@@ -163,7 +164,7 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
         value :
             Value as returned by the underlying driver.
@@ -176,7 +177,7 @@ class Feature(property):
         """
         return value
 
-    def pre_set(self, instance, value):
+    def pre_set(self, driver, value):
         """Hook to format the value passed to the Feature before sending it
         to the instrument.
 
@@ -187,7 +188,7 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeature
+        driver : HasFeature
             Object on which this Feature is defined.
         value :
             Value as passed by the user.
@@ -200,7 +201,7 @@ class Feature(property):
         """
         return value
 
-    def set(self, instance, value):
+    def set(self, driver, value):
         """Access the driver to actually set the instrument state.
 
         By default this method falls back to calling the parent
@@ -209,15 +210,15 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
         value :
             Object to pass to the driver method to set the value.
 
         """
-        return instance.default_set_feature(self, self._setter, value)
+        return driver.default_set_feature(self, self._setter, value)
 
-    def post_set(self, instance, value, i_value, response):
+    def post_set(self, driver, value, i_value, response):
         """Hook to perform additional action after setting a value.
 
         This can be used to check the instrument operated correctly or perform
@@ -227,7 +228,7 @@ class Feature(property):
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
         value :
             Value as passed by the user.
@@ -242,16 +243,16 @@ class Feature(property):
             Raised if the driver detects an issue.
 
         """
-        self.check_operation(self, instance, value, i_value, response)
+        self.check_operation(self, driver, value, i_value, response)
 
-    def check_operation(self, instance, value, i_value, response):
+    def check_operation(self, driver, value, i_value, response):
         """Check the instrument operated correctly.
 
         This uses the driver default_check_operation method.
 
         Parameters
         ----------
-        instance : HasFeatures
+        driver : HasFeatures
             Object on which this Feature is defined.
         value :
             Value as passed by the user.
@@ -265,8 +266,8 @@ class Feature(property):
         LantzError :
             Raised if the driver detects an issue.
         """
-        res, details = instance.default_check_operation(self, value, i_value,
-                                                        response)
+        res, details = driver.default_check_operation(self, value, i_value,
+                                                      response)
         if not res:
             mess = 'The instrument did not succeed to set {} to {} ({})'
             if details:
@@ -275,22 +276,22 @@ class Feature(property):
                 mess += '.'
             raise LantzError(mess.format(self._name, value, i_value))
 
-    def discard_cache(self, instance, value, i_value, response):
+    def discard_cache(self, driver, value, i_value, response):
         """Empty the cache of the specified values.
 
         """
-        instance.clear_cache(features=self._discard['features'])
+        driver.clear_cache(features=self._discard['features'])
         if 'limits' in self._discard:
-            instance.discard_limits(self._discard['limits'])
+            driver.discard_limits(self._discard['limits'])
 
-    def extract(self, instance, value):
+    def extract(self, driver, value):
         """Extract the return value using the extract value.
 
         """
         return self._parser(value)
 
     def clone(self):
-        """Clone the Feature by copying all the local attributes and instance
+        """Clone the Feature by copying all the local attributes and driver
         methods
 
         """
@@ -470,15 +471,18 @@ class Feature(property):
         check_set.
 
         """
-        build = self._build_checker
-        if len(checks) == 2:
-            if checks[0]:
-                self.get_check = MethodType(build(checks[0]), self)
-            if checks[1]:
-                self.set_check = MethodType(build(checks[1], True), self)
-        else:
-            self.get_check = MethodType(build(checks), self)
-            self.set_check = MethodType(build(checks, True), self)
+        build = build_checker
+        if len(checks) != 2:
+            checks = (checks, checks)
+
+        if checks[0]:
+            self.get_check = MethodType(build(checks[0], '(self, driver)'),
+                                        self)
+        if checks[1]:
+            self.set_check = MethodType(build(checks[1],
+                                              '(self, driver, value)',
+                                              'value'),
+                                        self)
 
         if hasattr(self, 'get_check'):
             self.modify_behavior('pre_get', self.get_check,
@@ -487,138 +491,82 @@ class Feature(property):
             self.modify_behavior('pre_set', self.set_check,
                                  ('checks', 'prepend'), True)
 
-    def _build_checker(self, check, set=False):
-        """Assemble a checker function from the provided assertions.
-
-        Parameters
-        ----------
-        check : unicode
-            ; separated string containing boolean test to assert. '{' and '}'
-            delimit field which should be replaced by instrument state. 'value'
-            should be considered a reserved keyword available when checking
-            a set operation.
-
-        Returns
-        -------
-        checker : function
-            Function to use
-
-        """
-        func_def = 'def check(self, instance):\n' if not set\
-            else 'def check(self, instance, value):\n'
-        assertions = check.split(';')
-        for assertion in assertions:
-            # First find replacement fields.
-            aux = assertion.split('{')
-            if len(aux) < 2:
-                # Silently ignore checks unrelated to instrument state.
-                continue
-            line = 'assert '
-            els = [el.strip() for s in aux for el in s.split('}')]
-            for i in range(0, len(els), 2):
-                e = els[i]
-                if i+1 < len(els):
-                    line += e + ' getattr(instance, "{}") '.format(els[i+1])
-                else:
-                    line += e
-            values = ', '.join(('getattr(instance,  "{}")'.format(el)
-                                for el in els[1::2]))
-
-            val_fmt = ', '.join(('{}'.format(el)+'={}' for el in els[1::2]))
-            a_mess = 'assertion {} failed, '.format(' '.join(els).strip())
-            a_mess += 'values are : {}".format(self.name, {})'.format(val_fmt,
-                                                                      values)
-
-            if set:
-                a_mess = '"Setting {} ' + a_mess
-            else:
-                a_mess = '"Getting {} ' + a_mess
-
-            func_def += '    ' + line + ', ' + a_mess + '\n'
-
-        if set:
-            func_def += '    return value'
-
-        loc = {}
-        exec_(func_def, globals(), loc)
-        return loc['check']
-
-    def _get(self, instance):
+    def _get(self, driver):
         """Getter defined when the user provides a value for the get arg.
 
         """
-        with instance.lock:
-            cache = instance._cache
+        with driver.lock:
+            cache = driver._cache
             name = self.name
             if name in cache:
                 return cache[name]
 
-            val = get_chain(self, instance)
-            if instance.use_cache:
+            val = get_chain(self, driver)
+            if driver.use_cache:
                 cache[name] = val
 
             return val
 
-    def _set(self, instance, value):
+    def _set(self, driver, value):
         """Setter defined when the user provides a value for the set arg.
 
         """
-        with instance.lock:
-            cache = instance._cache
+        with driver.lock:
+            cache = driver._cache
             name = self.name
             if name in cache and value == cache[name]:
                 return
 
-            set_chain(self, instance, value)
-            if instance.use_cache:
+            set_chain(self, driver, value)
+            if driver.use_cache:
                 cache[name] = value
 
-    def _del(self, instance):
+    def _del(self, driver):
         """Deleter clearing the cache of the instrument for this Feature.
 
         """
-        instance.clear_cache(features=(self.name,))
+        driver.clear_cache(features=(self.name,))
 
 
-def get_chain(feat, instance):
+def get_chain(feat, driver):
     """Generic get chain for Features.
 
     """
     i = -1
-    feat.pre_get(instance)
+    feat.pre_get(driver)
 
     while i < feat._retries:
         try:
             i += 1
-            val = feat.get(instance)
+            val = feat.get(driver)
             break
-        except instance.retries_exceptions:
+        except driver.retries_exceptions:
             if i != feat._retries:
-                instance.reopen_connection()
+                driver.reopen_connection()
                 continue
             else:
                 raise
 
-    alt_val = feat.post_get(instance, val)
+    alt_val = feat.post_get(driver, val)
 
     return alt_val
 
 
-def set_chain(feat, instance, value):
+def set_chain(feat, driver, value):
     """Generic set chain for Features.
 
     """
-    i_val = feat.pre_set(instance, value)
+    i_val = feat.pre_set(driver, value)
     i = -1
     while i < feat._retries:
         try:
             i += 1
-            resp = feat.set(instance, i_val)
+            resp = feat.set(driver, i_val)
             break
-        except instance.retries_exceptions:
+        except driver.retries_exceptions:
             if i != feat._retries:
-                instance.reopen_connection()
+                driver.reopen_connection()
                 continue
             else:
                 raise
-    feat.post_set(instance, value, i_val, resp)
+    feat.post_set(driver, value, i_val, resp)
