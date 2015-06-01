@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    lantz_core.features.mappings
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    lantz_core.features.mapping
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Feature for values requiring a mapping between user and instrs values.
 
@@ -53,32 +53,3 @@ class Mapping(Feature):
 
     def map_value(self, driver, value):
         return self._map[value]
-
-
-class Bool(Mapping):
-    """ Boolean property.
-
-    True/False are mapped to the mapping values, aliases can also be declared
-    to accept non-boolean values.
-
-    Parameters
-    ----------
-    aliases : dict, optional
-        Keys should be True and False and values the list of aliases.
-
-    """
-    def __init__(self, getter=None, setter=None, mapping=None, aliases=None,
-                 get_format='', retries=0, checks=None, discard=None, ):
-        Mapping.__init__(self, getter, setter, mapping, get_format,
-                         retries, checks, discard)
-
-        self._aliases = {True: True, False: False}
-        if aliases:
-            for k in aliases:
-                for v in aliases[k]:
-                    self._aliases[v] = k
-        self.creation_kwargs['aliases'] = aliases
-
-    def map_value(self, driver, value):
-        self._aliases[value]
-        return self._map[self._aliases[value]]

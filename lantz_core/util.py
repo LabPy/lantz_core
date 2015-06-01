@@ -12,6 +12,8 @@ from __future__ import (division, unicode_literals, print_function,
 from future.utils import exec_
 from future.builtins import str
 
+from collections import OrderedDict
+
 
 def build_checker(checks, signature, ret=''):
     """Assemble a checker function from the provided assertions.
@@ -60,6 +62,7 @@ def validate_in(driver, value, values, name):
     if value not in values:
         mess = 'Allowed value for {} are {}, {} not allowed'
         raise ValueError(mess.format(name, values, value))
+    return value
 
 
 def validate_limits(driver, value, limits, name):
@@ -93,3 +96,41 @@ def raise_limits_error(name, value, limits):
     if limits.step:
         mess += ' Step {}.'.format(limits.step)
     raise ValueError(mess)
+
+
+def byte_to_dict(byte, mapping):
+    """Convert a byte to a dictionary.
+
+    Parameters
+    ----------
+    byte : int
+        Byte value to interpret.
+
+    mapping : iterable
+        Name to associate to each bit value. The length of the iterable should
+        match the number of bit to decode.
+
+    """
+    def bit_conversion(x, i):
+            return bool(x & (1 << i))
+
+    return OrderedDict((n, bit_conversion(byte, i))
+                       for i, n in enumerate(mapping)
+                       if n is not None)
+
+
+def dict_to_byte(values, mapping):
+    """Convert a dictionary to a byte value.
+
+    Parameters
+    ----------
+    values : dict
+        Dictionary whose True values will be interpreted as high bit.
+
+    mapping : iterable
+        Name to associate to each bit value. The length of the iterable should
+        match the number of bit to endecode.
+
+    """
+    byte = sum((2**mapping.index(k) for k in values if values[k]))
+    return byte

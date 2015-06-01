@@ -27,6 +27,15 @@ def test_unicode():
     assert isinstance(u.post_get(None, 1), type(''))
 
 
+def test_unicode_mapping():
+    m = Unicode(mapping={'On': 1, 'Off': 2})
+    assert m.post_get(None, 1) == 'On'
+    assert m.post_get(None, 2) == 'Off'
+
+    assert m.pre_set(None, 'On') == 1
+    assert m.pre_set(None, 'Off') == 2
+
+
 class TestInt(object):
 
     def test_post_get(self):
@@ -44,6 +53,14 @@ class TestInt(object):
             i.pre_set(None, 5)
         del i.pre_set
         assert i.pre_set(None, 5)
+
+    def test_with_mapping(self):
+        m = Int(mapping={1: 'On', 2: 'Off'})
+        assert m.post_get(None, 'On') == 1
+        assert m.post_get(None, 'Off') == 2
+
+        assert m.pre_set(None, 1) == 'On'
+        assert m.pre_set(None, 2) == 'Off'
 
     def test_with_static_limits(self):
         i = Int(setter=True, values=(1,), limits=IntLimitsValidator(2, step=2))
@@ -109,6 +126,24 @@ class TestFloat(object):
         u = get_unit_registry()
         assert f.pre_set(None, 1.0) == 1.0
         assert f.pre_set(None, u.parse_expression('0.0024 V')) == 2.4
+
+    def test_with_mapping_no_units(self):
+        m = Float(mapping={1.0: 'On', 2.0: 'Off'})
+        assert m.post_get(None, 'On') == 1.0
+        assert m.post_get(None, 'Off') == 2.0
+
+        assert m.pre_set(None, 1.0) == 'On'
+        assert m.pre_set(None, 2.0) == 'Off'
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_with_mapping_units(self):
+        m = Float(mapping={1.0: 'On', 2.0: 'Off'}, unit='mV')
+        u = get_unit_registry()
+        assert m.post_get(None, 'On') == u.parse_expression('1.0 mV')
+        assert m.post_get(None, 'Off') == u.parse_expression('2.0 mV')
+
+        assert m.pre_set(None, u.parse_expression('0.001 V')) == 'On'
+        assert m.pre_set(None, u.parse_expression('0.002 V')) == 'Off'
 
     def test_set_with_static_limits(self):
         f = Float(setter=True, limits=FloatLimitsValidator(0.0))
