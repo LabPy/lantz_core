@@ -42,7 +42,7 @@ def build_checker(checks, signature, ret=''):
     for assertion in assertions:
         # XXXX use AST manipulation to provide more infos about assertion
         # failure. Take inspiration from pytest.assertions.rewrite.
-        a_mess = '"Assertion %s failed"' % assertion
+        a_mess = '"""Assertion %s failed"""' % assertion
         func_def += '    assert ' + assertion + ', ' + a_mess + '\n'
 
     if ret:
