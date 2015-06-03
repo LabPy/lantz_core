@@ -16,6 +16,7 @@ from pytest import raises, mark
 from lantz_core.features.scalars import Unicode, Int, Float
 from lantz_core.limits import IntLimitsValidator, FloatLimitsValidator
 from lantz_core.unit import get_unit_registry, UNIT_SUPPORT
+from lantz_core.has_features import set_feat
 from ..testing_tools import DummyParent
 
 
@@ -87,6 +88,31 @@ class TestInt(object):
         o.discard_limits(('test', ))
         with raises(ValueError):
             i.pre_set(o, 1)
+
+
+class CacheFloatTester(DummyParent):
+    """Dummy object used as a base class for testing Float cache handling.
+
+    """
+    val = 1.
+
+    fl = Float(True, True)
+
+    def __init__(self, caching_allowed=True):
+        super(CacheFloatTester, self).__init__(caching_allowed)
+
+    def _get_fl(self, feat):
+        return self.val
+
+    def _set_fl(self, feature, val):
+        self.val = val
+
+
+class UnitCacheFloatTester(CacheFloatTester):
+    """Same as above but with a unit.
+
+    """
+    fl = set_feat(unit='V')
 
 
 class TestFloat(object):
@@ -213,3 +239,57 @@ class TestFloat(object):
         assert f.pre_set(o, u.parse_expression('200 mV')) == 0.2
         with raises(ValueError):
             f.pre_set(o, u.parse_expression('100 mV'))
+
+    def test_cache_no_unit(self):
+        """Test getting a cached value when no unit is specified.
+
+        """
+        parent = CacheFloatTester()
+        aux = parent.fl
+        old_val = parent.val
+        parent.val += 1
+        assert parent.fl == aux
+
+        parent.fl = aux
+        assert parent.val != old_val
+
+    @mark.skipif(UNIT_SUPPORT is True, reason="Requires Pint absence")
+    def test_cache_unit_without_support(self):
+        """Test getting a cached value with a unit in the absence of unit
+        support.
+
+        """
+        parent = UnitCacheFloatTester()
+        aux = parent.fl
+        old_val = parent.val
+        parent.val += 1
+        assert parent.fl == aux
+        assert not hasattr(aux, 'magnitude')
+
+        parent.fl = aux
+        assert parent.val != old_val
+
+    @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
+    def test_cache_get_unit_with_support(self):
+        """Test getting a cached value with a unit in the presence of unit
+        support.
+
+        """
+        parent = UnitCacheFloatTester()
+        ureg = get_unit_registry()
+        parent.fl = 0.1
+        assert parent.val == 0.1
+        assert parent.fl == ureg.parse_expression('0.1 V')
+
+        parent.val = 1
+        parent.fl = ureg.parse_expression('0.1 V')
+        assert parent.val == 1
+
+        q = ureg.parse_expression('0.2 V')
+        parent.fl = q
+        assert parent.val == 0.2
+        assert parent.fl == q
+
+        parent.val = 1
+        parent.fl = 0.2
+        assert parent.val == 1

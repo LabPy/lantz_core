@@ -20,6 +20,7 @@ from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT
 from ..util import raise_limits_error
 from ..limits import IntLimitsValidator, FloatLimitsValidator
+from lantz_core.features.feature import set_chain, get_chain
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
@@ -82,6 +83,9 @@ class Float(LimitsValidated, Mapping, Enumerable):
     """ Property casting the instrument answer to a float or Quantity.
 
     Support range validation and unit conversion.
+
+    This Feature handle the cache in a specific fashion as values can have a
+    unit but may be specified without one.
 
     """
     def __init__(self, getter=None, setter=None, values=(), mapping=None,
@@ -151,3 +155,45 @@ class Float(LimitsValidated, Mapping, Enumerable):
             raise_limits_error(self.name, value, self.limits)
         else:
             return value
+
+    def _set(self, driver, value):
+        """Float setter, adapted to store both raw value and value with unit
+        in the cache.
+
+
+        """
+        with driver.lock:
+            cache = driver._cache
+            name = self.name
+            if name in cache and value in cache[name]:
+                return
+
+            set_chain(self, driver, value)
+
+            if driver.use_cache:
+                if UNIT_SUPPORT and self.unit:
+                    if isinstance(value, _Quantity):
+                        value = (value.magnitude, value)
+                    else:
+                        value = (value, value*self.unit)
+                else:
+                    value = (value,)
+                cache[name] = value
+
+    def _get(self, driver):
+        """Float getter adapted to the specific Float caching
+
+        """
+        with driver.lock:
+            cache = driver._cache
+            name = self.name
+            if name in cache:
+                return cache[name][-1]
+
+            val = get_chain(self, driver)
+            if driver.use_cache:
+                if UNIT_SUPPORT and self.unit:
+                    cache[name] = (val.magnitude, val)
+                else:
+                    cache[name] = (val,)
+            return val
