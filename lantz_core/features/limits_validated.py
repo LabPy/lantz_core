@@ -11,7 +11,7 @@
 """
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
-from future.utils import istext
+from past.builtins import basestring
 from inspect import cleandoc
 
 from .feature import Feature
@@ -37,11 +37,11 @@ class LimitsValidated(Feature):
             if isinstance(limits, AbstractLimitsValidator):
                 self.limits = limits
                 validate = self.validate_limits
-            elif istext(limits):
+            elif isinstance(limits, basestring):
                 self.limits_id = limits
                 validate = self.get_limits_and_validate
             else:
-                mess = cleandoc('''The range kwarg should either be a range
+                mess = cleandoc('''The limits kwarg should either be a limits
                     validator or a string used to retrieve the range through
                     get_range''')
                 raise TypeError(mess)
@@ -49,7 +49,7 @@ class LimitsValidated(Feature):
             self.modify_behavior('pre_set', validate, ('validate', 'append'),
                                  True)
 
-        self.creation_kwargs['range'] = range
+        self.creation_kwargs['limits'] = limits
 
     def validate_limits(self, driver, value):
         """Make sure a value is in the given range.

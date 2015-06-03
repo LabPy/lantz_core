@@ -19,6 +19,7 @@ from .limits_validated import LimitsValidated
 from .mapping import Mapping
 from ..unit import get_unit_registry, UNIT_SUPPORT
 from ..util import raise_limits_error
+from ..limits import IntLimitsValidator, FloatLimitsValidator
 
 if UNIT_SUPPORT:
     from pint.quantity import _Quantity
@@ -62,6 +63,8 @@ class Int(LimitsValidated, Mapping, Enumerable):
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:
+            if isinstance(limits, (tuple, list)):
+                limits = IntLimitsValidator(*limits)
             LimitsValidated.__init__(self, getter, setter, limits, extract,
                                      retries, checks, discard)
 
@@ -91,6 +94,8 @@ class Float(LimitsValidated, Mapping, Enumerable):
             Enumerable.__init__(self, getter, setter, values, extract,
                                 retries, checks, discard)
         else:
+            if isinstance(limits, (tuple, list)):
+                limits = FloatLimitsValidator(*limits, unit=unit)
             LimitsValidated.__init__(self, getter, setter, limits, extract,
                                      retries, checks, discard)
 
