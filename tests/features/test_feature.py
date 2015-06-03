@@ -20,6 +20,9 @@ from ..testing_tools import DummyParent
 
 
 def test_discard_cache():
+    """Test discarding the cache associated with a feature.
+
+    """
 
     class Cache(DummyParent):
 
@@ -42,8 +45,10 @@ def test_discard_cache():
     assert driver.feat_cac == 3
 
 
-# Test discarding both feature and limits
 def test_discard_cache2():
+    """Test discarding the cache of both features and limits.
+
+    """
 
     class Cache(DummyParent):
 
@@ -72,6 +77,33 @@ def test_discard_cache2():
     assert driver.get_limits('lim') == 2
     driver.feat_dis = 3
     assert driver.feat_cac == 3
+    assert driver.get_limits('lim') == 3
+
+
+def test_discard_cache3():
+    """Test discarding the cache of limits only.
+
+    """
+
+    class Cache(DummyParent):
+
+        val = 1
+        li = 1
+
+        feat_dis = Feature(setter=True, discard={'limits': ('lim', )})
+
+        def _set_feat_dis(self, feature, val):
+            self.val = val
+
+        def _limits_lim(self):
+            self.li += 1
+            return self.li
+
+    driver = Cache(True)
+    assert driver.get_limits('lim') == 2
+    driver.val = 2
+    assert driver.get_limits('lim') == 2
+    driver.feat_dis = 3
     assert driver.get_limits('lim') == 3
 
 
