@@ -57,14 +57,14 @@ class Channel(SubSystem):
         """Channels simply pipes the call to their parent.
 
         """
-        kwargs['ch_id'] = self.id
+        kwargs['id'] = self.id
         return self.parent.default_get_feature(feat, cmd, *args, **kwargs)
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Channels simply pipes the call to their parent.
 
         """
-        kwargs['ch_id'] = self.id
+        kwargs['id'] = self.id
         return self.parent.default_set_feature(feat, cmd, *args, **kwargs)
 
     def default_check_operation(self, feat, value, i_value, response):
