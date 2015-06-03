@@ -28,9 +28,9 @@ class Mapping(Feature):
         expect a command (ex: CMD ON) but when queried return 1.
 
     """
-    def __init__(self, getter=None, setter=None, mapping=None, get_format='',
+    def __init__(self, getter=None, setter=None, mapping=None, extract='',
                  retries=0, checks=None, discard=None):
-        Feature.__init__(self, getter, setter, get_format, retries,
+        Feature.__init__(self, getter, setter, extract, retries,
                          checks, discard)
 
         mapping = mapping if mapping else {}
