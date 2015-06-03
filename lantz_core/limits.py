@@ -167,16 +167,16 @@ class FloatLimitsValidator(AbstractLimitsValidator):
         mess = 'The {} of an FloatLimitsValidator must be a float not {}.'
         if min is None and max is None:
             raise ValueError('An FloatLimitsValidator must have a min or max')
-        if min is not None and not isinstance(min, float):
+        if min is not None and not isinstance(min, (int, float)):
             raise TypeError(mess.format('min', type(min)))
-        if max is not None and not isinstance(max, float):
+        if max is not None and not isinstance(max, (int, float)):
             raise TypeError(mess.format('max', type(max)))
-        if step and not isinstance(step, float):
+        if step and not isinstance(step, (int, float)):
             raise TypeError(mess.format('step', type(step)))
 
-        self.minimum = min
-        self.maximum = max
-        self.step = step
+        self.minimum = float(min) if min is not None else None
+        self.maximum = float(max) if max is not None else None
+        self.step = float(step) if step is not None else None
 
         if UNIT_SUPPORT and unit:
             ureg = get_unit_registry()

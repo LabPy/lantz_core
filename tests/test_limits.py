@@ -93,7 +93,7 @@ class TestIntLimitsValidator(object):
 class TestFloatLimitsValidator(object):
 
     def test_validate_larger(self):
-        iv = FloatLimitsValidator(0.0)
+        iv = FloatLimitsValidator(0)
 
         assert iv.validate(2.1)
         assert iv.validate(0.1)
@@ -150,14 +150,15 @@ class TestFloatLimitsValidator(object):
         assert not iv.validate(-0.05)
 
     def test_init_checks(self):
+        FloatLimitsValidator(1)
         with raises(ValueError):
             FloatLimitsValidator(step=1)
         with raises(TypeError):
-            FloatLimitsValidator(1)
+            FloatLimitsValidator(object())
         with raises(TypeError):
-            FloatLimitsValidator(max=1)
+            FloatLimitsValidator(max=type)
         with raises(TypeError):
-            FloatLimitsValidator(1.0, step=1)
+            FloatLimitsValidator(1.0, step='1')
 
     @mark.skipif(unit.UNIT_SUPPORT is False, reason="Requires Pint")
     def test_unit_conversion(self):
