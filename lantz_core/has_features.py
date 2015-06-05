@@ -411,11 +411,10 @@ class HasFeaturesMeta(type):
                 ch_cls = make_cls_from_subpart(name, part_name,
                                                part, inherited_ch[k][0],
                                                docs)
+
+                # Must be valid otherwise parent declaration would be messed up
                 available = (part._available_ if part._available_ else
                              inherited_ch[k][1])
-                if not available:
-                    msg = 'No way to identify channels defined for {}'
-                    raise ValueError(msg.format(k))
                 channels[part_name] = (ch_cls, available)
 
             else:
