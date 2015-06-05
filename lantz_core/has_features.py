@@ -189,17 +189,19 @@ class channel(_subpart):
 
     Parameters
     ----------
-    list_available_method_name : unicode
-        Name of the parent method to call to know which channels exist.
+    available : unicode, tuple or list, optional
+        Name of the parent method to call to know which channels exist or list
+        of channel ids. If absent the channel declaration on the base class is
+        used instead.
 
     bases : class or tuple of classes, optional
         Class or classes to use as base class when no matching subpart exists
         on the driver.
 
     """
-    def __init__(self, list_available_method_name, bases=()):
+    def __init__(self, available=None, bases=()):
         super(channel, self).__init__(bases)
-        self._list_available_ = list_available_method_name
+        self._available_ = available
 
 
 def make_cls_from_subpart(parent_name, part_name, part, base, docs):
@@ -407,9 +409,14 @@ class HasFeaturesMeta(type):
                                                               docs)
             elif k in inherited_ch:
                 ch_cls = make_cls_from_subpart(name, part_name,
-                                               part, inherited_ch[k],
+                                               part, inherited_ch[k][0],
                                                docs)
-                channels[part_name] = (ch_cls, part._list_available_)
+                available = (part._available_ if part._available_ else
+                             inherited_ch[k][1])
+                if not available:
+                    msg = 'No way to identify channels defined for {}'
+                    raise ValueError(msg.format(k))
+                channels[part_name] = (ch_cls, available)
 
             else:
                 if isinstance(part, subsystem):
@@ -420,7 +427,10 @@ class HasFeaturesMeta(type):
                 elif isinstance(part, channel):
                     ch_cls = make_cls_from_subpart(name, part_name, part,
                                                    None, docs)
-                    channels[part_name] = (ch_cls, part._list_available_)
+                    if not part._available_:
+                        msg = 'No way to identify channels defined for {}'
+                        raise ValueError(msg.format(k))
+                    channels[part_name] = (ch_cls, part._available_)
 
         # Put references to the subsystem and channel classes on the class.
         for k, v in subsystems.items():
