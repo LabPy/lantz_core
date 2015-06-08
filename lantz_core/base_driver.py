@@ -74,7 +74,7 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
     """
     secure_com_except = (TimeoutError)
 
-    def __init__(self, connection_info, caching_allowed=True):
+    def __init__(self, connection_infos, caching_allowed=True):
         super(BaseDriver, self).__init__(caching_allowed)
 
         self.owner = ''

@@ -280,7 +280,8 @@ class Feature(property):
         """Empty the cache of the specified values.
 
         """
-        driver.clear_cache(features=self._discard['features'])
+        if 'features' in self._discard:
+            driver.clear_cache(features=self._discard['features'])
         if 'limits' in self._discard:
             driver.discard_limits(self._discard['limits'])
 

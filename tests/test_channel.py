@@ -32,7 +32,7 @@ def test_ch_d_get():
     assert a.d_get_called == 1
     assert a.d_get_cmd == 'Test'
     assert a.d_get_args == (1,)
-    assert a.d_get_kwargs == {'ch_id': 1, 'a': 2}
+    assert a.d_get_kwargs == {'id': 1, 'a': 2}
 
 
 def test_ch_d_set():
@@ -43,7 +43,7 @@ def test_ch_d_set():
     assert a.d_set_called == 1
     assert a.d_set_cmd == 'Test'
     assert a.d_set_args == (1,)
-    assert a.d_set_kwargs == {'ch_id': 1, 'a': 2}
+    assert a.d_set_kwargs == {'id': 1, 'a': 2}
 
 
 def test_ch_d_check():
