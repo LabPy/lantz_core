@@ -49,3 +49,21 @@ def test_bdriver_check():
 def test_bdriver_connected():
     with raises(NotImplementedError):
         BaseDriver({'a': 1}).connected
+
+
+def test_bdriver_context():
+
+    class Driver(BaseDriver):
+
+        def initialize(self):
+            self._c = True
+
+        def finalize(self):
+            self._c = False
+
+        @property
+        def connected(self):
+            return self._c
+
+    with Driver({}) as d:
+        assert d.connected
