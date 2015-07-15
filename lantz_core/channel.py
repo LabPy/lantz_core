@@ -96,12 +96,15 @@ class ChannelContainer(object):
 
     """
 
-    def __init__(self, cls, parent, name, list_available):
+    def __init__(self, cls, parent, name, available):
         self._cls = cls
         self._channels = {}
         self._name = name
         self._parent = parent
-        self._list = getattr(parent, list_available)
+        if isinstance(available, (tuple, list)):
+            self._list = lambda: available
+        else:
+            self._list = getattr(parent, available)
 
     @property
     def available(self):

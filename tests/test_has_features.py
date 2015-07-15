@@ -520,6 +520,28 @@ def test_channel_declaration1():
     assert d.ch[1] is ch
 
 
+def test_channel_declaration2():
+
+    class DeclareChannel(DummyParent):
+
+        ch = channel((1,))
+
+    class OverrideChannel(DeclareChannel):
+
+        ch = channel()
+
+        with ch:
+            ch.test = Feature(getter=True)
+
+            @ch
+            def _get_test(self, iprop):
+                return 'This is a test'
+
+    d = OverrideChannel()
+    assert d.ch.available == (1,)
+    assert d.ch[1].test == 'This is a test'
+
+
 def test_def_check():
     with raises(NotImplementedError):
         HasFeatures().default_check_operation(None, None, None)
