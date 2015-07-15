@@ -143,3 +143,24 @@ def test_action_with_unit():
 
     dummy = Dummy()
     assert dummy.test(2, 3) == get_unit_registry().parse_expression('6 V')
+
+
+def test_action_with_checks():
+    """Test defining an action with checks.
+
+    """
+    class Dummy(DummyParent):
+
+        @Action(checks='r>i;i>0')
+        def test(self, r, i):
+            return r*i
+
+    assert isinstance(Dummy.test, Action)
+
+    dummy = Dummy()
+    assert dummy.test(3, 2) == 6
+    with raises(AssertionError):
+        dummy.test(2, 2)
+
+    with raises(AssertionError):
+        dummy.test(3, -1)
