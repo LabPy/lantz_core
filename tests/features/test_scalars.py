@@ -64,7 +64,7 @@ class TestInt(object):
         assert m.pre_set(None, 2) == 'Off'
 
     def test_with_static_limits(self):
-        i = Int(setter=True, values=(1,), limits=IntLimitsValidator(2, step=2))
+        i = Int(setter=True, values=(1,), limits=(2, 5, 2))
         with raises(ValueError):
             i.pre_set(None, 1)
         assert i.pre_set(None, 4)
@@ -172,7 +172,7 @@ class TestFloat(object):
         assert m.pre_set(None, u.parse_expression('0.002 V')) == 'Off'
 
     def test_set_with_static_limits(self):
-        f = Float(setter=True, limits=FloatLimitsValidator(0.0))
+        f = Float(setter=True, limits=(0.0, ))
         assert f.pre_set(None, 0.1) == 0.1
         with raises(ValueError):
             f.pre_set(None, -1.0)

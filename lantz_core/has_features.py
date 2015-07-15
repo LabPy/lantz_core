@@ -18,7 +18,6 @@ from future.utils import with_metaclass
 from types import FunctionType
 from inspect import cleandoc, getsourcelines, currentframe
 from itertools import chain
-from textwrap import fill
 from abc import ABCMeta
 from collections import defaultdict
 
@@ -736,13 +735,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         """Reopen the connection to the instrument.
 
         """
-        message = fill(cleandoc(
-            '''This method is used to reopen a connection whose state
-            is suspect, for example the last message sent did not
-            go through, and should be implemented by classes
-            subclassing HasFeatures'''),
-            80)
-        raise NotImplementedError(message)
+        raise NotImplementedError()
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
         """Method used by default by the Feature to retrieve a value from an
@@ -762,10 +755,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             state.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            retrieve a value from an instrument. Should be implemented by
-            classes subclassing HasFeatures.'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Method used by default by the Feature to set an instrument value.
@@ -784,10 +774,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             state.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            set an instrument value. Should be implemented by
-            classes subclassing HasFeatures'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
     def default_check_operation(self, feat, value, i_value, state=None):
         """Method used by default by the Feature to check the instrument
@@ -813,10 +800,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             something should always be returned.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            check the instrument operation. Should be implemented by
-            classes subclassing HasFeatures.'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
 
 AbstractHasFeatures.register(HasFeatures)

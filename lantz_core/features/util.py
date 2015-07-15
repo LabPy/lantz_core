@@ -68,6 +68,10 @@ class MethodsComposer(object):
     be called in the right order while allowing fancy insertion based on method
     id.
 
+    Notes
+    -----
+    Method ids must be unique and duplicate names are removed without warning.
+
     """
     __slots__ = ('_names', '_methods')
 

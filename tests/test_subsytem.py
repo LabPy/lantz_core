@@ -13,7 +13,13 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
 from lantz_core.has_features import subsystem
+from lantz_core.subsystem import SubSystem
 from .testing_tools import DummyParent
+
+
+def test_declaration_meta():
+
+    assert SubSystem() is SubSystem
 
 
 class SSParent(DummyParent):

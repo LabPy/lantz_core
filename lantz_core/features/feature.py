@@ -369,7 +369,7 @@ class Feature(property):
                 self._customs[method_name] = OrderedDict()
             elif not isinstance(self._customs[method_name], OrderedDict):
                 composer.prepend('old', self._customs[method_name])
-                self._customs[method_name] = {'custom': (m, 'prepend')}
+                self._customs[method_name] = OrderedDict(custom=(m, 'prepend'))
 
         # We now update the composer.
         composer_method_name = specifiers[1]
