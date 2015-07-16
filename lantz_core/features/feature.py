@@ -98,9 +98,6 @@ class Feature(property):
                              self._set if setter is not None else None,
                              self._del)
 
-        self.modify_behavior('post_set', self.check_operation,
-                             ('operation', 'prepend'), True)
-
         if checks:
             self._build_checkers(checks)
         if discard:
@@ -243,7 +240,7 @@ class Feature(property):
             Raised if the driver detects an issue.
 
         """
-        self.check_operation(self, driver, value, i_value, response)
+        self.check_operation(driver, value, i_value, response)
 
     def check_operation(self, driver, value, i_value, response):
         """Check the instrument operated correctly.
@@ -274,7 +271,7 @@ class Feature(property):
                 mess += ':' + str(details)
             else:
                 mess += '.'
-            raise LantzError(mess.format(self._name, value, i_value))
+            raise LantzError(mess.format(self.name, value, i_value))
 
     def discard_cache(self, driver, value, i_value, response):
         """Empty the cache of the specified values.
@@ -333,8 +330,9 @@ class Feature(property):
         method_name : unicode
             Name of the Feature behavior which should be modified.
 
-        custom_method : MethodType
-            Method to use when customizing the feature behavior.
+        custom_method : callable|None
+            Method to use when customizing the feature behavior, or None when
+            removing a customization.
 
         specifiers : tuple, optional
             Tuple used to determine how the method should be used. If ommitted
@@ -342,10 +340,19 @@ class Feature(property):
             it will be used to update the MethodComposer in the adequate
             fashion. For get and set MethodComposers are not used and no matter
             this value the method will replace the existing behavior.
+            ex : ('custom', 'add_after', 'old')
+
+        internal : bool, optional
+            Private flag used to indicate that this method is used for internal
+            purposes and that the modification makes no sense to remember as
+            this won't have to be copied by copy_custom_behaviors.
 
         """
         # Make the method a method of the Feature.
-        m = wrap_custom_feat_method(custom_method, self)
+        # The if clause handles the case of 'remove' for which passing None
+        # should work
+        m = (wrap_custom_feat_method(custom_method, self) if custom_method
+             else None)
 
         # In the absence of specifiers or for get and set we simply replace the
         # method.
@@ -363,13 +370,14 @@ class Feature(property):
         # In case of non internal modifications (ie unrelated to Feature
         # initialisation) we keep a description of what has been done to be
         # able to copy those behaviors. If a method already existed we assume
-        # it was meaningful and add it in the composer under the id 'custom'.
+        # it was meaningful and add it in the composer under the id 'old'.
         if not internal:
             if method_name not in self._customs:
                 self._customs[method_name] = OrderedDict()
             elif not isinstance(self._customs[method_name], OrderedDict):
-                composer.prepend('old', self._customs[method_name])
-                self._customs[method_name] = OrderedDict(custom=(m, 'prepend'))
+                old = self._customs[method_name]
+                composer.prepend('old', old)
+                self._customs[method_name] = OrderedDict(old=(old, 'prepend'))
 
         # We now update the composer.
         composer_method_name = specifiers[1]
@@ -420,6 +428,7 @@ class Feature(property):
         """
         # Loop on methods which are affected by mofifiers.
         for meth_name, modifiers in feat._customs.items():
+            print(meth_name)
             if isinstance(modifiers, MethodType):
                     self.modify_behavior(meth_name, modifiers)
                     continue
@@ -436,16 +445,17 @@ class Feature(property):
                     aux = {'add_after': 'append', 'add_before': 'prepend'}
                     self.modify_behavior(meth_name, modifier[0],
                                          (custom, aux[modifier[1]]))
+
                 # Otherwise we check whether or not the anchor exists and if
                 # not try to find the most meaningfull one.
                 else:
                     our_names = method._names
-                    if custom in our_names:
+                    if modifier[2] in our_names:
                         self.modify_behavior(meth_name, modifier[0],
                                              (custom, modifier[1],
                                               modifier[2]))
                     else:
-                        feat_names = getattr(self, meth_name)._names
+                        feat_names = getattr(feat, meth_name)._names
                         # For add after we try to find an entry existing in
                         # both feature going backward (we will prepend at the
                         # worst), for add before we go forward (we will append
@@ -464,7 +474,7 @@ class Feature(property):
 
                         if shift != 0:
                             op = 'prepend' if shift == -1 else 'append'
-                            self.modify_behavior(meth_name, modifiers[0],
+                            self.modify_behavior(meth_name, modifier[0],
                                                  (custom, op))
 
     def _build_checkers(self, checks):
