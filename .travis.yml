@@ -1,0 +1,39 @@
+language: python
+
+# use container-based infrastructure
+sudo : false
+
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+
+env:
+  - PINT="N"
+  - PINT="Y"
+
+before_install:
+  - REDIRECT_TO=/dev/stdout  # change to /dev/null to silence Travis
+  - wget -q http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b -p ~/anaconda &> ${REDIRECT_TO}
+  - export PATH=~/anaconda/bin:$PATH
+  - conda update --yes --quiet conda &> ${REDIRECT_TO}
+
+  - SRC_DIR=$(pwd)
+  - export ENV_NAME=travis
+
+install:
+  - conda create --yes -n $ENV_NAME python=$TRAVIS_PYTHON_VERSION pip > ${REDIRECT_TO};
+  - source activate $ENV_NAME
+  - conda install --yes --quiet future, pytest > ${REDIRECT_TO};
+  - pip install -q pytest-cov, pytest-capturelog, funcsigs
+  - if [ $PINT == 'Y' ]; then pip install pint; fi
+  - pip install -q coveralls
+
+script:
+  - cd ${SRC_DIR}
+  - py.test tests -v --cov lantz_core
+
+after_script:
+  - coveralls --verbose
