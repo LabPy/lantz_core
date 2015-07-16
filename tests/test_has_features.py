@@ -13,8 +13,7 @@ from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 from pytest import raises
 
-from lantz_core.has_features import (subsystem, set_feat, channel, HasFeatures,
-                                     set_action)
+from lantz_core.has_features import (subsystem, set_feat, channel, set_action)
 from lantz_core.subsystem import SubSystem
 from lantz_core.channel import Channel
 from lantz_core.action import Action
@@ -36,10 +35,13 @@ def test_documenting_feature():
     assert DocTester.test.__doc__ ==\
         'This is the docstring for the Feature test.'
 
-# --- Test overriding features behaviors --------------------------------------
 
+# --- Test changing features defaults -----------------------------------------
 
-def test_customizing():
+def test_set_feat():
+    """Test modifying a feature parameters using set_feat.
+
+    """
 
     class DecorateIP(Feature):
 
@@ -67,6 +69,8 @@ def test_customizing():
     assert aux1.test != aux2.test
     assert aux2.test.startswith('<it>')
 
+
+# --- Test overriding features behaviors --------------------------------------
 
 def test_overriding_get():
 
@@ -184,6 +188,19 @@ def test_clone_if_needed():
             return 2
 
     assert OverridingParent.test is not prop
+
+
+def test_customizing_unknown():
+    """Test customizing an undeclared feature.
+
+    """
+
+    with raises(AttributeError):
+
+        class Overriding(DummyParent):
+
+            def _get_test(self, iprop):
+                return 1
 
 # --- Test customizing feature ------------------------------------------------
 
@@ -432,6 +449,9 @@ def test_set_action():
 
 
 def test_subsystem_declaration1():
+    """Test declaring a subsystem.
+
+    """
 
     class DeclareSubsystem(DummyParent):
 
@@ -445,9 +465,13 @@ def test_subsystem_declaration1():
 
 
 def test_subsystem_declaration2():
+    """Test embedding a feature in a subsytem declaration.
+
+    """
 
     class DeclareSubsystem2(DummyParent):
 
+        #: Subsystem
         sub_test = subsystem()
         with sub_test as s:
 
@@ -455,6 +479,7 @@ def test_subsystem_declaration2():
             s.test = Feature()
 
     assert isinstance(DeclareSubsystem2.sub_test.test, Feature)
+    assert DeclareSubsystem2.sub_test.__doc__ == 'Subsystem'
     assert DeclareSubsystem2.sub_test.test.__doc__ == 'Subsystem feature doc'
     d = DeclareSubsystem2()
     with raises(AttributeError):
@@ -462,6 +487,9 @@ def test_subsystem_declaration2():
 
 
 def test_subsystem_declaration3():
+    """Test embedding a method in a subsytem declaration.
+
+    """
 
     class DeclareSubsystem(DummyParent):
 
@@ -478,10 +506,18 @@ def test_subsystem_declaration3():
 
 
 def test_subsystem_declaration4():
+    """Test overriding a subsystem decl and specifying mixin class.
+
+    """
 
     class DeclareSubsystem(DummyParent):
 
         sub_test = subsystem()
+
+        with sub_test as s:
+
+            #: Subsystem feature doc
+            s.aux = Feature()
 
     class Mixin(SubSystem):
 
@@ -496,11 +532,34 @@ def test_subsystem_declaration4():
 
     d = OverrideSubsystem()
     assert d.sub_test.test
+    assert d.sub_test.get_feat('aux').__doc__
+
+
+def test_subsytem_declaration5():
+    """Test nested subsytem declarations.
+
+    """
+    class DeclareSubsystem5(DummyParent):
+
+        #: Subsystem docstring
+        sub_test = subsystem()
+        with sub_test as s:
+
+            #: Nested subsystem
+            s.sub = subsystem()
+
+    assert DeclareSubsystem5.sub_test.sub.__doc__ == 'Nested subsystem'
+    d = DeclareSubsystem5()
+    assert d.sub_test.__subsystems__
+    assert isinstance(d.sub_test.sub, SubSystem)
+
 
 # --- Test declaring channels -----------------------------------------------
 
-
 def test_channel_declaration1():
+    """Test declaring a channel with a method returning the available ones.
+
+    """
 
     class Dummy(Channel):
         pass
@@ -521,6 +580,9 @@ def test_channel_declaration1():
 
 
 def test_channel_declaration2():
+    """Test declaring a channel with a static set of channels and overriding it
+
+    """
 
     class DeclareChannel(DummyParent):
 
@@ -542,9 +604,14 @@ def test_channel_declaration2():
     assert d.ch[1].test == 'This is a test'
 
 
-def test_def_check():
-    with raises(NotImplementedError):
-        HasFeatures().default_check_operation(None, None, None)
+def test_channel_declaration3():
+    """Test handling missing way to know available channels.
+
+    """
+    with raises(ValueError):
+        class DeclareChannel(DummyParent):
+
+            ch = channel()
 
 
 # --- Test cache handling -----------------------------------------------------
@@ -603,8 +670,22 @@ class TestHasFeaturesCache(object):
         assert self.ch2._cache == {'aux': 2}
 
     def test_clear_by_feat(self):
+        """Test clearinig only specified features cache.
+
+        """
 
         self.a.clear_cache(features=['test1', 'ch.aux', 'ss.test'])
+        assert self.a._cache == {'test2': 2}
+        assert self.ss._cache == {}
+        assert self.ch1._cache == {}
+        assert self.ch2._cache == {}
+
+    def test_check_cache_prop2(self):
+        """Test clearing only specified features cache, using '.name' to access
+        parent.
+
+        """
+        self.ss.clear_cache(features=['.test1', 'test', '.ch.aux'])
         assert self.a._cache == {'test2': 2}
         assert self.ss._cache == {}
         assert self.ch1._cache == {}
@@ -625,7 +706,10 @@ class TestHasFeaturesCache(object):
         assert res == {'test1': 1, 'test2': 2, 'ss': {'test': 1}}
 
     def test_check_cache_prop(self):
-        res = self.a.check_cache(properties=['test1', 'ss.test', 'ch.aux'])
+        """Test accessing only specified features cache.
+
+        """
+        res = self.a.check_cache(features=['test1', 'ss.test', 'ch.aux'])
         assert res == {'test1': 1, 'ss': {'test': 1},
                        'ch': {1: {'aux': 1}, 2: {'aux': 2}}}
 
@@ -639,9 +723,24 @@ def test_limits():
         def _limits_test(self):
             return object()
 
-    assert LimitsDecl.__limits__ == set(['test'])
     decl = LimitsDecl()
+    assert decl.declared_limits == set(['test'])
     r = decl.get_limits('test')
     assert decl.get_limits('test') is r
     decl.discard_limits(('test', ))
     assert decl.get_limits('test') is not r
+
+
+# --- Miscellaneous -----------------------------------------------------------
+
+def test_get_feat():
+    """Tes the get_feat method.
+
+    """
+    class Tester(DummyParent):
+
+        #: This is the docstring for
+        #: the Feature test.
+        test = Feature()
+
+    assert Tester().get_feat('test') is Tester.test
