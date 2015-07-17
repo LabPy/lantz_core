@@ -28,7 +28,8 @@ install:
   - source activate $ENV_NAME
   - conda install --yes --quiet future, pytest > ${REDIRECT_TO};
   - pip install -q pytest-cov, pytest-capturelog, funcsigs
-  - if [ $PINT == 'Y' ]; then pip install pint; fi
+    # Use develop version of Pint
+  - if [ $PINT == 'Y' ]; then pip install https://github.com/hgrecco/pint/zipball/develop; fi
   - pip install -q coveralls
 
 script:
