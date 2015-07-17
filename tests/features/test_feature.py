@@ -20,6 +20,46 @@ from lantz_core.errors import LantzError
 from ..testing_tools import DummyParent
 
 
+class TestFeatureInit(object):
+    """Test that all init parameters are correctly stored.
+
+    This class can easily be extended to other feature by overriding the
+    parameters class attribute with the added keywords, and the cls attribute.
+
+    """
+    cls = Feature
+
+    defaults = dict(getter=True, setter=True)
+
+    parameters = dict(extract='{}',
+                      retries=1,
+                      checks='1>0',
+                      discard={'limits': 'test'}
+                      )
+
+    exclude = list()
+
+    def test_init(self):
+
+        e = []
+        for c in type.mro(type(self)):
+            if c is not object:
+                e.extend(c.exclude)
+        p = {}
+        d = {}
+        for c in type.mro(type(self)):
+            if c is not object:
+                p.update(c.parameters)
+                d.update(c.defaults)
+
+        for k, v in p.items():
+            if k not in e:
+                kwargs = d.copy()
+                kwargs[k] = v
+                feat = self.cls(**kwargs)
+                assert feat.creation_kwargs[k] == v
+
+
 def test_standard_post_set():
     """Test the standard post_set method relying on the driver checks.
 

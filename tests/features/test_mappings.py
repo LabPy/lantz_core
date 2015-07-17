@@ -15,6 +15,15 @@ from __future__ import (division, unicode_literals, print_function,
 from lantz_core.features.mapping import Mapping
 from lantz_core.features.bool import Bool
 
+from .test_feature import TestFeatureInit
+
+
+class TestMappingInit(TestFeatureInit):
+
+    cls = Mapping
+
+    parameters = dict(mapping={'r': 't'})
+
 
 def test_mapping():
     m = Mapping(mapping={'On': 1, 'Off': 2})
@@ -32,6 +41,16 @@ def test_mapping_asymetric():
 
     assert m.pre_set(None, 'On') == 'ON'
     assert m.pre_set(None, 'Off') == 'OFF'
+
+
+class TestBoolInit(TestFeatureInit):
+
+    cls = Bool
+
+    defaults = dict(mapping={True: 1, False: 2})
+
+    parameters = dict(aliases={True: ['On', 'on', 'ON'],
+                               False: ['Off', 'off', 'OFF']})
 
 
 def test_bool():

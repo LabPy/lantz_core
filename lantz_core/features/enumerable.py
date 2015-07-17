@@ -25,9 +25,9 @@ class Enumerable(Feature):
         Permitted values for the property.
 
     """
-    def __init__(self, getter=None, setter=None, values=(), get_format='',
+    def __init__(self, getter=None, setter=None, values=(), extract='',
                  retries=0, checks=None, discard=None):
-        super(Enumerable, self).__init__(getter, setter, get_format, retries,
+        super(Enumerable, self).__init__(getter, setter, extract, retries,
                                          checks, discard)
         self.values = set(values)
         self.creation_kwargs['values'] = values

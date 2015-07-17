@@ -11,13 +11,31 @@
 """
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
+
 from pytest import raises, mark
 
+from lantz_core.features.enumerable import Enumerable
 from lantz_core.features.scalars import Unicode, Int, Float
 from lantz_core.limits import IntLimitsValidator, FloatLimitsValidator
 from lantz_core.unit import get_unit_registry, UNIT_SUPPORT
 from lantz_core.has_features import set_feat
+
 from ..testing_tools import DummyParent
+from .test_mappings import TestMappingInit
+from .test_feature import TestFeatureInit
+from .test_limits_validated import TestLimitsValidatedInit
+
+
+class TestEnumerableInit(TestFeatureInit):
+
+    cls = Enumerable
+
+    parameters = dict(values=(11, 2))
+
+
+class TestUnicodeInit(TestEnumerableInit, TestMappingInit):
+
+    cls = Unicode
 
 
 def test_unicode():
@@ -35,6 +53,12 @@ def test_unicode_mapping():
 
     assert m.pre_set(None, 'On') == 1
     assert m.pre_set(None, 'Off') == 2
+
+
+class TestIntInit(TestLimitsValidatedInit, TestEnumerableInit,
+                  TestMappingInit):
+
+    cls = Int
 
 
 class TestInt(object):
@@ -113,6 +137,13 @@ class UnitCacheFloatTester(CacheFloatTester):
 
     """
     fl = set_feat(unit='V')
+
+
+class TestFloatInit(TestIntInit):
+
+    cls = Float
+
+    parameters = dict(unit='V')
 
 
 class TestFloat(object):

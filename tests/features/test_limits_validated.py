@@ -18,6 +18,16 @@ from lantz_core.features.limits_validated import LimitsValidated
 from lantz_core.limits import IntLimitsValidator
 
 from ..testing_tools import DummyParent
+from .test_feature import TestFeatureInit
+
+
+class TestLimitsValidatedInit(TestFeatureInit):
+    """Test LimitsValidated init.
+
+    """
+    cls = LimitsValidated
+
+    parameters = dict(limits='test')
 
 
 def test_with_no_limits():
