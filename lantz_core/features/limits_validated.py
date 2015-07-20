@@ -29,9 +29,9 @@ class LimitsValidated(Feature):
         provided it is used to retrieve the range from the driver at runtime.
 
     """
-    def __init__(self, getter=None, setter=None, limits=None, get_format='',
+    def __init__(self, getter=None, setter=None, limits=None, extract='',
                  retries=0, checks=None, discard=None):
-        Feature.__init__(self, getter, setter, get_format,
+        Feature.__init__(self, getter, setter, extract,
                          retries, checks, discard)
         if limits:
             if isinstance(limits, AbstractLimitsValidator):

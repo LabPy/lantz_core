@@ -18,7 +18,6 @@ from future.utils import with_metaclass
 from types import FunctionType
 from inspect import cleandoc, getsourcelines, currentframe
 from itertools import chain
-from textwrap import fill
 from abc import ABCMeta
 from collections import defaultdict
 
@@ -123,7 +122,7 @@ class _subpart(object):
 
     def __setattr__(self, name, value):
         if isinstance(value, _subpart):
-            value._parent_ = self
+            object.__setattr__(value, '_parent_', self)
         object.__setattr__(self, name, value)
 
     def __call__(self, func):
@@ -324,9 +323,6 @@ class HasFeaturesMeta(type):
         for key, value in dct.items():
 
             if isinstance(value, _subpart):
-                if key in subparts:
-                    msg = 'Attempt to redeclare subpart {}'
-                    raise KeyError(msg.format(key))
                 value._name_ = key
                 subparts[key] = value
 
@@ -621,7 +617,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                     for ch in getattr(self, chs):
                         ch.clear_cache(subsystems)
 
-    def check_cache(self, subsystems=True, channels=True, properties=None):
+    def check_cache(self, subsystems=True, channels=True, features=None):
         """Return the value of the cache of the object.
 
         The cache values for the subsystems and channels are not accessible.
@@ -634,8 +630,8 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         channels : bool, optional
             Whether or not to include the channels caches. This argument is
             used only if properties is None.
-        properties : iterable of str, optional
-            Name of the properties whose cache should be cleared. All caches
+        features : iterable of str, optional
+            Name of the features whose cache should be cleared. All caches
             will be cleared if not specified.
 
         Returns
@@ -646,10 +642,10 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
 
         """
         cache = {}
-        if properties:
+        if features:
             sss = defaultdict(list)
             chs = defaultdict(list)
-            for name in properties:
+            for name in features:
                 if '.' in name:
                     aux, n = name.split('.', 1)
                     if aux in self.__subsystems__:
@@ -660,7 +656,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                     cache[name] = self._cache[name]
 
             for ss in sss:
-                cache[ss] = getattr(self, ss).check_cache(properties=sss[ss])
+                cache[ss] = getattr(self, ss).check_cache(features=sss[ss])
 
             if self.__channels__:
                 for ch in chs:
@@ -669,7 +665,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
                     channel_cont = getattr(self, ch)
                     for ch_id in channel_cont.available:
                         chan = channel_cont[ch_id]
-                        ch_cache[ch_id] = chan.check_cache(properties=chs[ch])
+                        ch_cache[ch_id] = chan.check_cache(features=chs[ch])
         else:
             cache = self._cache.copy()
             if subsystems:
@@ -693,7 +689,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         Ranges are considered declared as soon as a getter has been defined.
 
         """
-        return self.__ranges__
+        return self.__limits__
 
     def get_limits(self, limits_id):
         """Access the limits object matching the definition.
@@ -736,13 +732,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
         """Reopen the connection to the instrument.
 
         """
-        message = fill(cleandoc(
-            '''This method is used to reopen a connection whose state
-            is suspect, for example the last message sent did not
-            go through, and should be implemented by classes
-            subclassing HasFeatures'''),
-            80)
-        raise NotImplementedError(message)
+        raise NotImplementedError()
 
     def default_get_feature(self, feat, cmd, *args, **kwargs):
         """Method used by default by the Feature to retrieve a value from an
@@ -762,10 +752,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             state.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            retrieve a value from an instrument. Should be implemented by
-            classes subclassing HasFeatures.'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
     def default_set_feature(self, feat, cmd, *args, **kwargs):
         """Method used by default by the Feature to set an instrument value.
@@ -784,10 +771,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             state.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            set an instrument value. Should be implemented by
-            classes subclassing HasFeatures'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
     def default_check_operation(self, feat, value, i_value, state=None):
         """Method used by default by the Feature to check the instrument
@@ -813,10 +797,7 @@ class HasFeatures(with_metaclass(HasFeaturesMeta, object)):
             something should always be returned.
 
         """
-        mess = fill(cleandoc('''Method used by default by the Feature to
-            check the instrument operation. Should be implemented by
-            classes subclassing HasFeatures.'''), 80)
-        raise NotImplementedError(mess)
+        raise NotImplementedError()
 
 
 AbstractHasFeatures.register(HasFeatures)

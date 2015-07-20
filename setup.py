@@ -1,17 +1,12 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-from __future__ import with_statement
-
-# http://docs.python.org/distutils/
-# http://packages.python.org/distribute/
-try:
-    from setuptools import setup
-except:
-    from distutils.core import setup
+from setuptools import setup
 
 import os.path
 
-version_py = os.path.join(os.path.dirname(__file__), 'lantz_core', 'version.py')
+version_py = os.path.join(os.path.dirname(__file__), 'lantz_core',
+                          'version.py')
 with open(version_py, 'r') as f:
     d = dict()
     exec(f.read(), d)
@@ -49,8 +44,6 @@ language to wrap existing drivers and DLLs.''',
         ],
     packages = ['lantz_core',
                 'lantz_core.features'],
-    requires = ['numpy',
-                'future',
-                'pyvisa',
-                'funcsigs'],
+    install_requires = ['future', 'funcsigs', 'stringparser'],
+    requires = ['future', 'pyvisa', 'funcsigs', 'stringparser'],
 )

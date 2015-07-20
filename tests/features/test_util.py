@@ -80,6 +80,11 @@ class TestMethodsComposer(object):
     def test_getitem(self):
         assert self.composer['test1'] is self.first
 
+    def test_overwritting_id(self):
+        rep = lambda x: x**2
+        self.composer.append('test1', rep)
+        assert self.composer._names == ['test2', 'test1']
+
 
 def assert_val(val):
     assert val

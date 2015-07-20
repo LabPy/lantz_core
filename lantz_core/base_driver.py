@@ -146,11 +146,12 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
             80)
         raise NotImplementedError(message)
 
-    def __entry__(self):
+    def __enter__(self):
         """Context manager handling the connection to the instrument.
 
         """
         self.initialize()
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Context manager handling the connection to the instrument.

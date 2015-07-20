@@ -15,6 +15,19 @@ from pytest import raises
 
 from lantz_core.features.register import Register
 
+from .test_mappings import TestMappingInit
+
+
+class TestRegisterInit(TestMappingInit):
+
+    cls = Register
+
+    defaults = dict(names=('a', 'b', None, 'r', None, None, None, None))
+
+    parameters = dict(length=8)
+
+    exclude = ['mapping']
+
 
 class TestRegister(object):
 
