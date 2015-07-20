@@ -300,6 +300,9 @@ class TestFloat(object):
         parent.fl = aux
         assert parent.val != old_val
 
+        parent.fl = 0.5
+        assert parent.val == 0.5
+
     @mark.skipif(UNIT_SUPPORT is False, reason="Requires Pint")
     def test_cache_get_unit_with_support(self):
         """Test getting a cached value with a unit in the presence of unit
@@ -308,8 +311,10 @@ class TestFloat(object):
         """
         parent = UnitCacheFloatTester()
         ureg = get_unit_registry()
+        parent.val = 0.2
+        assert parent.val == 0.2
+        assert parent.fl == ureg.parse_expression('0.2 V')
         parent.fl = 0.1
-        assert parent.val == 0.1
         assert parent.fl == ureg.parse_expression('0.1 V')
 
         parent.val = 1
