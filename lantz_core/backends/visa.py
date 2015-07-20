@@ -15,6 +15,7 @@ import logging
 from inspect import cleandoc
 from time import sleep
 from future.builtins import str
+from future.utils import raise_with_traceback
 
 try:
     from pyvisa.highlevel import ResourceManager
@@ -23,8 +24,8 @@ try:
     from pyvisa import constants
     from pyvisa import errors
 except ImportError:
-    logger = logging.getLogger(__name__)
-    logger.warn('The PyVISA library is necessary to use the visa backend')
+    msg = 'The PyVISA library is necessary to use the visa backend'
+    raise_with_traceback(ImportError(msg))
 
 from ..base_driver import BaseDriver
 from ..util import byte_to_dict
@@ -32,11 +33,11 @@ from ..action import Action
 from ..errors import InterfaceNotSupported, TimeoutError
 
 
-_RESOURCE_MANAGER = None
+_RESOURCE_MANAGERS = None
 
 
 def get_visa_resource_manager(backend='@ni'):
-    """Access the VISA ressource manager in use by Eapii.
+    """Access the VISA ressource manager in use by Lantz.
 
     """
     global _RESOURCE_MANAGER
@@ -140,8 +141,8 @@ class BaseVisaDriver(BaseDriver):
     def __init__(self, connection_infos, caching_allowed=True):
         super(BaseDriver, self).__init__(connection_infos, caching_allowed)
 
-        # This entry is populated by the compute_id class method from the
-        # provided informations.
+        # This entry is populated by the compute_id class method (called by the
+        # the metaclass from the provided informations.
         r_name = connection_infos['resource_name']
 
         rm = get_visa_resource_manager(connection_infos.get('backend', '@ni'))
@@ -150,21 +151,19 @@ class BaseVisaDriver(BaseDriver):
         try:
             r_info = self._resource_manager.resource_info(r_name)
         except errors.VisaIOError:
-            raise ValueError('The resource name is invalid')
+            msg = 'The resource name is invalid (%s)' % r_name
+            raise_with_traceback(ValueError(msg))
 
         #: The resource name
-        #: :type: str
         self.resource_name = r_name
 
         #: Keyword arguments passed to the resource during initialization.
-        #: :type: dict
         kw = self._get_defaults_kwargs(r_info.interface_type.name.upper(),
                                        r_info.resource_class,
                                        connection_infos.get('para', {}))
         self.resource_kwargs = kw
 
         # The resource will be created when the driver is initialized.
-        #: :type: pyvisa.resources.MessageBasedResource
         self._resource = None
 
     @classmethod
