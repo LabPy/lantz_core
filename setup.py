@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 import os.path
 
@@ -42,8 +42,7 @@ language to wrap existing drivers and DLLs.''',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3'
         ],
-    packages = ['lantz_core',
-                'lantz_core.features'],
+    packages = find_packages(exclude=['tests', 'tests.*']),
     install_requires = ['future', 'funcsigs', 'stringparser'],
     requires = ['future', 'pyvisa', 'funcsigs', 'stringparser'],
 )
