@@ -170,7 +170,6 @@ class BaseVisaDriver(BaseDriver):
         """
         if 'resource_name' not in connection_infos:
             visa_infos = cls._get_visa_infos(connection_infos)
-            print(visa_infos)
             connection_infos['resource_name'] =\
                 assemble_canonical_name(**visa_infos)
         else:
