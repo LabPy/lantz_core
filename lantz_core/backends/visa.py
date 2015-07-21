@@ -24,7 +24,7 @@ try:
     from pyvisa import constants
     from pyvisa import errors
 except ImportError:
-    msg = 'The PyVISA library is necessary to use the visa backend'
+    msg = 'The PyVISA library is necessary to use the visa backend.'
     raise_with_traceback(ImportError(msg))
 
 from ..base_driver import BaseDriver
@@ -40,17 +40,17 @@ def get_visa_resource_manager(backend='@ni'):
     """Access the VISA ressource manager in use by Lantz.
 
     """
-    global _RESOURCE_MANAGER
-    if not _RESOURCE_MANAGER or backend not in _RESOURCE_MANAGER:
+    global _RESOURCE_MANAGERS
+    if not _RESOURCE_MANAGERS or backend not in _RESOURCE_MANAGERS:
         mess = cleandoc('''Creating default Visa resource manager for Lantz
             with backend {}.'''.format(backend))
         logging.debug(mess)
-        if not _RESOURCE_MANAGER:
-            _RESOURCE_MANAGER = {backend: ResourceManager(backend)}
+        if not _RESOURCE_MANAGERS:
+            _RESOURCE_MANAGERS = {backend: ResourceManager(backend)}
         else:
-            _RESOURCE_MANAGER[backend] = ResourceManager(backend)
+            _RESOURCE_MANAGERS[backend] = ResourceManager(backend)
 
-    return _RESOURCE_MANAGER[backend]
+    return _RESOURCE_MANAGERS[backend]
 
 
 def set_visa_resource_manager(rm, backend='@ni'):
@@ -65,16 +65,16 @@ def set_visa_resource_manager(rm, backend='@ni'):
         Instance to use as Lantz default resource manager.
 
     """
-    global _RESOURCE_MANAGER
+    global _RESOURCE_MANAGERS
     assert isinstance(rm, ResourceManager)
-    if _RESOURCE_MANAGER and backend in _RESOURCE_MANAGER:
+    if _RESOURCE_MANAGERS and backend in _RESOURCE_MANAGERS:
         msg = 'Cannot set Lantz VISA resource manager once one already exists.'
         raise ValueError(msg)
 
-    if not _RESOURCE_MANAGER:
-        _RESOURCE_MANAGER = {backend: rm}
+    if not _RESOURCE_MANAGERS:
+        _RESOURCE_MANAGERS = {backend: rm}
     else:
-        _RESOURCE_MANAGER[backend] = rm
+        _RESOURCE_MANAGERS[backend] = rm
 
 
 class BaseVisaDriver(BaseDriver):
@@ -127,7 +127,7 @@ class BaseVisaDriver(BaseDriver):
     #: It should be specified in two layers, the first indicating the
     #: interface type and the second the corresponding arguments.
     #: The key COMMON is used to indicate keywords for all interfaces.
-    #: For example::
+    #: For example:
     #:
     #:       {'ASRL':     {'read_termination': '\n',
     #:                     'baud_rate': 9600},
@@ -139,10 +139,10 @@ class BaseVisaDriver(BaseDriver):
     DEFAULTS = None
 
     def __init__(self, connection_infos, caching_allowed=True):
-        super(BaseDriver, self).__init__(connection_infos, caching_allowed)
+        super(BaseVisaDriver, self).__init__(connection_infos, caching_allowed)
 
         # This entry is populated by the compute_id class method (called by the
-        # the metaclass from the provided informations.
+        # the metaclass) from the provided informations.
         r_name = connection_infos['resource_name']
 
         rm = get_visa_resource_manager(connection_infos.get('backend', '@ni'))
@@ -179,7 +179,7 @@ class BaseVisaDriver(BaseDriver):
 
     @classmethod
     def _get_defaults_kwargs(cls, instrument_type, resource_type,
-                             **user_kwargs):
+                             user_kwargs):
         """Compute the default keyword arguments.
 
         This is done by combining:
@@ -240,7 +240,9 @@ class BaseVisaDriver(BaseDriver):
         """Close and re-open a suspicious connection.
 
         A VISA clear command is issued after re-opening the connection to make
-        sure the instrument queues do not keep corrupted data.
+        sure the instrument queues do not keep corrupted data. This might be
+        an issue with some instruments in such a case simply override this
+        method.
 
         """
         self.close_connection()
@@ -257,6 +259,7 @@ class BaseVisaDriver(BaseDriver):
 
         None is mapped to VI_TMO_INFINITE.
         A value less than 1 is mapped to VI_TMO_IMMEDIATE.
+
         """
         return self._resource.timeout
 

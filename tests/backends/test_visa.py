@@ -12,19 +12,23 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+import pytest
+
+pytest.importorskip('lantz_core.backends.visa')
+pytest.importorskip('pyvisa-sim')
+
 from pyvisa.highlevel import ResourceManager
-from pytest import yield_fixture, raises
 from lantz_core.backends.visa import (get_visa_resource_manager,
                                       set_visa_resource_manager,
                                       BaseVisaDriver,
                                       VisaMessageDriver)
 
 
-@yield_fixture
+@pytest.yield_fixture
 def cleanup():
     yield
     import lantz_core.backends.visa as lv
-    lv._RESOURCE_MANAGER = None
+    lv._RESOURCE_MANAGERS = None
 
 
 def test_get_visa_resource_manager(cleanup):
@@ -34,7 +38,7 @@ def test_get_visa_resource_manager(cleanup):
 
     assert rm is not get_visa_resource_manager('@sim')
     import lantz_core.backends.visa as lv
-    assert len(lv._RESOURCE_MANAGER) == 2
+    assert len(lv._RESOURCE_MANAGERS) == 2
 
 
 def test_set_visa_resource_manager(cleanup):
@@ -43,7 +47,7 @@ def test_set_visa_resource_manager(cleanup):
     set_visa_resource_manager(rm, '@py')
     assert rm is get_visa_resource_manager('@py')
 
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         set_visa_resource_manager(rm, '@py')
 
     rm = ResourceManager('@sim')
@@ -52,10 +56,13 @@ def test_set_visa_resource_manager(cleanup):
 
 
 class TestBaseVisaDriver(object):
-    """
+    """Test the basic functionality expected from a VISA driver.
+
     """
     def setup(self):
-        pass
+        self.driver = BaseVisaDriver({'type': 'TCPIP',
+                                      'address': '192.168.0.1',
+                                      'backend': 'base.yml@sim'})
 
     def test_driver_unicity(self):
         pass
