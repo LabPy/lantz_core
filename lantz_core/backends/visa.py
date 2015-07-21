@@ -145,20 +145,19 @@ class BaseVisaDriver(BaseDriver):
         rm = get_visa_resource_manager(connection_infos.get('backend', '@ni'))
         self._resource_manager = rm
 
+        # Does not work with Visa alias
         try:
             r_info = self._resource_manager.resource_info(r_name)
-        except errors.VisaIOError:
-            msg = 'The resource name is invalid (%s)' % r_name
-            raise_with_traceback(ValueError(msg))
+            #: Keyword arguments passed to the resource during initialization.
+            kw = self._get_defaults_kwargs(r_info.interface_type.name.upper(),
+                                           r_info.resource_class,
+                                           connection_infos.get('para', {}))
+            self.resource_kwargs = kw
+        except ValueError:
+            self.resource_kwargs = connection_infos.get('para', {})
 
         #: The resource name
         self.resource_name = r_name
-
-        #: Keyword arguments passed to the resource during initialization.
-        kw = self._get_defaults_kwargs(r_info.interface_type.name.upper(),
-                                       r_info.resource_class,
-                                       connection_infos.get('para', {}))
-        self.resource_kwargs = kw
 
         # The resource will be created when the driver is initialized.
         self._resource = None
@@ -170,14 +169,15 @@ class BaseVisaDriver(BaseDriver):
         """
         if 'resource_name' not in connection_infos:
             visa_infos = cls._get_visa_infos(connection_infos)
+            print(visa_infos)
             connection_infos['resource_name'] =\
                 assemble_canonical_name(**visa_infos)
         else:
             # Try to get a canonical name.
             try:
                 connection_infos['resource_name'] =\
-                    to_canonical_name(**connection_infos)
-            except Exception:
+                    to_canonical_name(connection_infos['resource_name'])
+            except Exception:  # TODO Use a more adequate exception
                 # Fail silently to allow the use of VISA alias
                 pass
 
@@ -268,8 +268,8 @@ class BaseVisaDriver(BaseDriver):
         method.
 
         """
-        self.close_connection()
-        self.open_connection()
+        self.finalize()
+        self.initialize()
         self._resource.clear()
         # Make sure the clear command completed before sending more commands.
         sleep(0.3)
@@ -284,17 +284,22 @@ class BaseVisaDriver(BaseDriver):
         A value less than 1 is mapped to VI_TMO_IMMEDIATE.
 
         """
-        return self._resource.timeout
+        if self._resource:
+            return self._resource.timeout
+        else:
+            return self.resource_kwargs.get('timeout')
 
     @timeout.setter
     def timeout(self, timeout):
-        self._resource.timeout = timeout
         self.resource_kwargs['timeout'] = timeout
+        if self._resource:
+            self._resource.timeout = timeout
 
     @timeout.deleter
     def timeout(self):
-        del self._resource.timeout
-        del self.resource_kwargs.timeout
+        del self.resource_kwargs['timeout']
+        if self._resource:
+            del self._resource.timeout
 
     @property
     def resource_info(self):
@@ -320,14 +325,14 @@ class BaseVisaDriver(BaseDriver):
         """See Pyvisa docs.
 
         """
-        return self._resource.install_handlers(event_type, handler,
-                                               user_handle)
+        return self._resource.install_handler(event_type, handler,
+                                              user_handle)
 
     def uninstall_handler(self, event_type, handler, user_handle=None):
         """See Pyvisa docs.
 
         """
-        self._resource.uninstall_handler(self, event_type, handler,
+        self._resource.uninstall_handler(event_type, handler,
                                          user_handle)
 
 

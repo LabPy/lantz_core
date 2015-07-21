@@ -12,17 +12,25 @@
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
 
+import os
+
 import pytest
 
 pytest.importorskip('lantz_core.backends.visa')
 pytest.importorskip('pyvisa-sim')
 
 from pyvisa.highlevel import ResourceManager
+from lantz_core.errors import InterfaceNotSupported
 from lantz_core.backends.visa import (get_visa_resource_manager,
                                       set_visa_resource_manager,
                                       BaseVisaDriver,
-                                      VisaMessageDriver)
+                                      VisaMessageDriver,
+                                      errors)
 
+base_backend = os.path.join(os.path.dirname(__file__), 'base.yaml@sim')
+
+
+# --- Test resource managers handling -----------------------------------------
 
 @pytest.yield_fixture
 def cleanup():
@@ -55,33 +63,184 @@ def test_set_visa_resource_manager(cleanup):
     assert rm is get_visa_resource_manager('@sim')
 
 
-class TestBaseVisaDriver(object):
-    """Test the basic functionality expected from a VISA driver.
+# --- Test base driver capabilities -------------------------------------------
+
+@pytest.fixture
+def visa_driver():
+    """Fixture returning a basic visa driver.
 
     """
-    def setup(self):
-        self.driver = BaseVisaDriver({'type': 'TCPIP',
-                                      'address': '192.168.0.1',
-                                      'backend': 'base.yml@sim'})
+    return BaseVisaDriver({'interface_type': 'TCPIP',
+                           'host_address': '192.168.0.100',
+                           'backend': base_backend})
 
-    def test_driver_unicity(self):
-        pass
 
-    def test_resource_info(self):
-        pass
+class TestBaseVisaDriver(object):
 
-    def test_interface_type(self):
-        pass
+    def test_visa_driver_unicity(self, visa_driver):
+        """Test that visa name normalization ensure driver unicity.
 
-    def test_clear(self):
-        pass
+        """
+        rname = 'TCPIP::192.168.0.100::INSTR'
+        driver2 = BaseVisaDriver({'resource_name': rname,
+                                  'backend': base_backend})
+        assert visa_driver.resource_name == driver2.resource_name
+        assert visa_driver is driver2
 
-    def test_timeout(self):
-        pass
+    def test_handling_a_visa_alias(self):
+        """Check that a visa alias can be accepted.
 
-    def test_reopen_connection(self):
-        pass
+        """
+        rname = 'visa_alias'
+        driver = BaseVisaDriver({'resource_name': rname,
+                                 'backend': base_backend})
+        assert driver.resource_name == 'visa_alias'
 
+    def test_filling_infos_from_PROTOCOLS(self):
+        """Test that infos provided in the PROTOCOLS class attribute are correctly
+        picked
+
+        """
+        class TestVisaDriver(BaseVisaDriver):
+
+            PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
+                                   'port': 5025}}
+
+        driver = TestVisaDriver({'interface_type': 'TCPIP',
+                                 'host_address': '192.168.0.100',
+                                 'backend': base_backend})
+
+        rname = 'TCPIP::192.168.0.100::5025::SOCKET'
+        driver2 = TestVisaDriver({'resource_name': rname,
+                                  'backend': base_backend})
+
+        assert driver.resource_name == driver2.resource_name
+        assert driver is driver2
+
+        TestVisaDriver.PROTOCOLS = {'TCPIP': [{'resource_class': 'INSTR',
+                                               'lan_device_name': 'inst1'},
+                                              {'resource_class': 'SOCKET',
+                                               'port': 5025}]}
+
+        driver = TestVisaDriver({'interface_type': 'TCPIP',
+                                 'host_address': '192.168.0.100',
+                                 'backend': base_backend})
+
+        rname = 'TCPIP::192.168.0.100::inst1::INSTR'
+        driver2 = TestVisaDriver({'resource_name': rname,
+                                  'backend': base_backend})
+
+        assert driver.resource_name == driver2.resource_name
+        assert driver is driver2
+
+    def test_using_default_and_para(self):
+        """Test mixing default parameters and user custom ones.
+
+        """
+        class TestDefaultVisa(VisaMessageDriver):
+
+            DEFAULTS = {'TCPIP': {'read_termination': '\n'},
+                        'COMMON': {'write_termination': '\n',
+                                   'timeout': 10}}
+
+        driver = TestDefaultVisa({'interface_type': 'TCPIP',
+                                  'host_address': '192.168.0.1',
+                                  'backend': base_backend,
+                                  'para': {'timeout': 5}})
+
+        assert driver.resource_kwargs == {'read_termination': '\n',
+                                          'write_termination': '\n',
+                                          'timeout': 5}
+
+    def test_using_forbidden_interface(self):
+        """Test creating an instance for a forbidden interface type.
+
+        """
+        class TestDefaultVisa(VisaMessageDriver):
+
+            DEFAULTS = {'TCPIP': None,
+                        'COMMON': {'write_termination': '\n',
+                                   'timeout': 10}}
+
+        with pytest.raises(InterfaceNotSupported):
+            TestDefaultVisa({'interface_type': 'TCPIP',
+                             'host_address': '192.168.0.1',
+                             'backend': base_backend,
+                             'para': {'timeout': 5}})
+
+    def test_clear(self, visa_driver):
+        """Test clearing an instrument.
+
+        """
+        visa_driver.initialize()
+        with pytest.raises(NotImplementedError):
+            visa_driver.clear()
+
+    def test_resource_info(self, visa_driver):
+        """Test querying the underlying resource infos.
+
+        """
+        visa_driver.initialize()
+        assert visa_driver.resource_info
+
+    def test_interface_type(self, visa_driver):
+        """Test querying the underlying resource interface type.
+
+        """
+        visa_driver.initialize()
+        assert visa_driver.interface_type
+
+    def test_timeout(self, visa_driver):
+        """Test the timeout descriptor.
+
+        """
+        assert visa_driver.timeout is None
+        visa_driver.timeout = 10
+        visa_driver.initialize()
+        assert visa_driver.timeout == 10
+        del visa_driver.timeout
+        assert visa_driver.timeout == float('+inf')
+
+    def test_reopen_connection(self, visa_driver, monkeypatch):
+        """Test reopening a connections.
+
+        """
+        class Witness(object):
+
+            def __init__(self):
+                self.called = 0
+
+            def __call__(self):
+                self.called += 1
+
+        visa_driver.initialize()
+        visa_driver.timeout = 20
+        w = Witness()
+        monkeypatch.setattr(type(visa_driver._resource), 'clear',  w)
+
+        visa_driver.reopen_connection()
+        assert visa_driver._resource
+        assert w.called == 1
+        assert visa_driver.timeout == 20
+
+    def test_install_handler(self, visa_driver):
+        """Test clearing an instrument.
+
+        """
+        visa_driver.initialize()
+        with pytest.raises(NotImplementedError):
+            visa_driver.install_handler(None, None)
+
+    def test_uninstall_handler(self, visa_driver):
+        """Test clearing an instrument.
+
+        """
+        visa_driver.initialize()
+        with pytest.raises(errors.UnknownHandler):
+            visa_driver.uninstall_handler(None, None)
+
+
+# --- Test message driver specific methods ------------------------------------
 
 class TestVisaMessageDriver(object):
 
