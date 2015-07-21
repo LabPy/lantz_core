@@ -77,6 +77,34 @@ def set_visa_resource_manager(rm, backend='@ni'):
         _RESOURCE_MANAGERS[backend] = rm
 
 
+class PyvisaProperty(property):
+    """Special property used to wrap a property present in a Pyvisa resource.
+
+    """
+
+    def __init__(self, name, deleter=None):
+        super(PyvisaProperty, self).__init__(self._get, self._set, deleter)
+
+        self.name = name
+
+    def _get(self, obj):
+        if obj._resource:
+            return getattr(obj._resource, self.name)
+        else:
+            return obj.resource_kwargs.get(self.name)
+
+    def _set(self, obj, value):
+        obj.resource_kwargs[self.name] = value
+        if obj._resource:
+            setattr(obj._resource, self.name, value)
+
+
+def timeout_deleter(obj):
+    del obj.resource_kwargs['timeout']
+    if obj._resource:
+        del obj._resource.timeout
+
+
 class BaseVisaDriver(BaseDriver):
     """Base class for instrument communicating through the VISA protocol.
 
@@ -276,30 +304,11 @@ class BaseVisaDriver(BaseDriver):
 
     # --- Pyvisa wrappers
 
-    @property
-    def timeout(self):
-        """The timeout in milliseconds for all resource I/O operations.
-
-        None is mapped to VI_TMO_INFINITE.
-        A value less than 1 is mapped to VI_TMO_IMMEDIATE.
-
-        """
-        if self._resource:
-            return self._resource.timeout
-        else:
-            return self.resource_kwargs.get('timeout')
-
-    @timeout.setter
-    def timeout(self, timeout):
-        self.resource_kwargs['timeout'] = timeout
-        if self._resource:
-            self._resource.timeout = timeout
-
-    @timeout.deleter
-    def timeout(self):
-        del self.resource_kwargs['timeout']
-        if self._resource:
-            del self._resource.timeout
+    #: The timeout in milliseconds for all resource I/O operations.
+    #:
+    #: None is mapped to VI_TMO_INFINITE.
+    #: A value less than 1 is mapped to VI_TMO_IMMEDIATE.
+    timeout = PyvisaProperty('timeout', timeout_deleter)
 
     @property
     def resource_info(self):
@@ -444,6 +453,7 @@ class VisaMessageDriver(BaseVisaDriver):
         rm = get_visa_resource_manager(backend)
         try:
             resource_names = rm.list_resources(query)
+            print(resource_names)
         except:
             raise ValueError('No USBTMC devices found for {}.'.format(query))
 
@@ -657,44 +667,21 @@ class VisaMessageDriver(BaseVisaDriver):
         driver : VisaMessageDriver
 
         """
-        rname = GPIBInstr(board=board, address=address)
+        rname = GPIBInstr(board=board, primary_address=address)
         return cls({'resource_name': str(rname),
                     'para': kwargs, 'backend': backend},
                    caching_allowed)
 
     # --- Pyvisa wrappers -----------------------------------------------------
-    @property
-    def encoding(self):
-        """Encoding used for read and write operations.
-        """
-        return self._resource._encoding
 
-    @encoding.setter
-    def encoding(self, encoding):
-        self._resource._encoding = encoding
-        self.resource_kwargs['encoding'] = encoding
+    #: Encoding used for read and write operations.
+    encoding = PyvisaProperty('encoding')
 
-    @property
-    def read_termination(self):
-        """Read termination character.
-        """
-        return self._resource._read_termination
+    #: Read termination character.
+    read_termination = PyvisaProperty('read_termination')
 
-    @read_termination.setter
-    def read_termination(self, value):
-        self._resource._read_termination = value
-        self.resource_kwargs['read_termination'] = value
-
-    @property
-    def write_termination(self):
-        """Writer termination character.
-        """
-        return self._resource._write_termination
-
-    @write_termination.setter
-    def write_termination(self, value):
-        self._resource._write_termination = value
-        self.resource_kwargs['write_termination'] = value
+    #: Write termination character.
+    write_termination = PyvisaProperty('write_termination')
 
     def write_raw(self, message):
         """See Pyvisa docs.
@@ -727,13 +714,6 @@ class VisaMessageDriver(BaseVisaDriver):
                                                   is_big_endian, termination,
                                                   encoding)
 
-    def write_values(self, message, values, termination=None, encoding=None):
-        """See Pyvisa docs.
-
-        """
-        return self._resource.write_values(message, values, termination,
-                                           encoding)
-
     def read_raw(self, size=None):
         """See Pyvisa docs.
 
@@ -757,12 +737,6 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         return self._resource.query(message, delay)
-
-    def query_values(self, message, delay=None):
-        """See Pyvisa docs.
-
-        """
-        return self._resource.query_values(message, delay)
 
     def query_ascii_values(self, message, converter='f', separator=',',
                            container=list, delay=None):

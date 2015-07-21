@@ -89,3 +89,11 @@ resources:
     device: device 1
   TCPIP::192.168.0.100::5025::SOCKET:
     device: device 1
+  ASRL1::INSTR:
+    device: device 1
+  GPIB::1::INSTR:
+    device: device 1
+  USB::0xB21::0x39::90326143::INSTR:
+    device: device 1
+#  USB::0xB21::0x39::90326143::RAW:
+#    device: device 1

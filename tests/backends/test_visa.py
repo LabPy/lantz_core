@@ -20,12 +20,15 @@ pytest.importorskip('lantz_core.backends.visa')
 pytest.importorskip('pyvisa-sim')
 
 from pyvisa.highlevel import ResourceManager
+from lantz_core.features import Float
 from lantz_core.errors import InterfaceNotSupported
 from lantz_core.backends.visa import (get_visa_resource_manager,
                                       set_visa_resource_manager,
                                       BaseVisaDriver,
                                       VisaMessageDriver,
-                                      errors)
+                                      VisaRegisterDriver,
+                                      errors,
+                                      to_canonical_name)
 
 base_backend = os.path.join(os.path.dirname(__file__), 'base.yaml@sim')
 
@@ -242,40 +245,145 @@ class TestBaseVisaDriver(object):
 
 # --- Test message driver specific methods ------------------------------------
 
+class TestVisaMessage(VisaMessageDriver):
+
+    MANUFACTURER_ID = '0xB21'
+
+    MODEL_CODE = '0x39'
+
+
 class TestVisaMessageDriver(object):
 
-    def setup(self):
-        pass
+# TODO need support for query in list_resources for @sim backend
+#    def test_via_usb_instr(self):
+#
+#        driver = TestVisaMessage.via_usb('90N326143',
+#                                          backend=base_backend)
+#        assert driver.resource_name ==\
+#            to_canonical_name('USB::0xB21::0x39::90N326143::INSTR')
+#        driver.initialize()
 
-    def test_via_usb_instr(self):
-        pass
-
-    def test_via_usb_raw(self):
-        pass
+#    def test_via_usb_raw(self):
+#
+#        driver = TestVisaMessage.via_usb_raw('90N326143',
+#                                             backend=base_backend)
+#        assert driver.resource_name ==\
+#            to_canonical_name('USB::0xB21::0x39::90N326143::RAW')
+#        driver.initialize()
 
     def test_via_tcpip_instr(self):
-        pass
+
+        driver = TestVisaMessage.via_tcpip('192.168.0.100',
+                                           backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('TCPIP::192.168.0.100::inst0::INSTR')
+        driver.initialize()
 
     def test_via_tcpip_socket(self):
+
+        driver = TestVisaMessage.via_tcpip_socket('192.168.0.100', 5025,
+                                                  backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('TCPIP::192.168.0.100::5025::SOCKET')
+        driver.initialize()
+
+    def test_via_serial(self):
+
+        driver = TestVisaMessage.via_serial(1, backend=base_backend)
+        assert driver.resource_name == to_canonical_name('ASRL1::INSTR')
+        driver.initialize()
+
+    def test_via_gpib(self):
+
+        driver = TestVisaMessage.via_gpib(1, backend=base_backend)
+        assert driver.resource_name == to_canonical_name('GPIB::1::INSTR')
+        driver.initialize()
+
+    def test_feature(self):
+        """Test getting and setting a feature.
+
+        """
+        class TestFeature(VisaMessageDriver):
+
+            freq = Float('?FREQ', 'FREQ {}')
+
+            DEFAULTS = {'COMMON': {'write_termination': '\n',
+                                   'read_termination': '\n'}}
+
+            def default_check_operation(self, feat, value, i_value,
+                                        state=None):
+                return True, ''
+
+        d = TestFeature.via_tcpip('192.168.0.100', backend=base_backend)
+        d.initialize()
+        assert d.freq == 100.0
+        d.freq = 10.
+        assert d.freq == 10.
+
+    def test_status_byte(self):
         pass
 
-    def test_encoding(self):
-        pass
+    def test_write_raw(self):
 
-    def test_write_termination(self):
-        pass
-
-    def test_read_termination(self):
-        pass
+        with pytest.raises(NotImplementedError):
+            self.driver.write_raw('')
 
     def test_write(self):
+        with pytest.raises(NotImplementedError):
+            self.driver.write('')
+
+    def test_write_ascii_values(self):
+
+        with pytest.raises(NotImplementedError):
+            self.driver.write_ascii_values('VAL', range(10), 'f', ',')
+
+    def test_write_binary_values(self):
+
+        pass
+
+    def test_read_raw(self, size=None):
+
         pass
 
     def test_read(self):
+
+        pass
+
+    def test_read_values(self):
+
         pass
 
     def test_query(self):
+
         pass
 
-    def test_status_byte(self):
+    def test_query_ascii_values(self):
+
+        pass
+
+    def test_query_binary_values(self):
+
+        pass
+
+
+class TestVisaRegistryDriver(object):
+    """Test the VisaRegistryDriver capabilities.
+
+    Use an abstract visa library as we don't have a simulated backend yet.
+
+    """
+    def test_move_in(self):
+
+        pass
+
+    def test_move_out(self):
+
+        pass
+
+    def test_read_memory(self):
+
+        pass
+
+    def test_write_memory(self):
+
         pass
