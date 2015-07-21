@@ -461,7 +461,8 @@ class VisaMessageDriver(BaseVisaDriver):
                            the serial number''')
             raise ValueError(msg.format(len(resource_names), query))
 
-        return cls({'resource_name': resource_names[0], 'para': kwargs},
+        return cls({'resource_name': resource_names[0], 'para': kwargs,
+                    'backend': backend},
                    caching_allowed)
 
     @classmethod
@@ -563,7 +564,8 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         resource_name = ASRLInstr(board=board)
-        return cls({'resource_name': str(resource_name), 'para': kwargs},
+        return cls({'resource_name': str(resource_name), 'para': kwargs,
+                    'backend': backend},
                    caching_allowed)
 
     @classmethod
@@ -594,7 +596,8 @@ class VisaMessageDriver(BaseVisaDriver):
         rname = TCPIPInstr(**{'host_address': host_address,
                               'lan_device_name': lan_device_name,
                               'board': board})
-        return cls({'resource_name': str(rname), 'para': kwargs},
+        return cls({'resource_name': str(rname), 'para': kwargs,
+                    'backend': backend},
                    caching_allowed)
 
     @classmethod
@@ -627,7 +630,8 @@ class VisaMessageDriver(BaseVisaDriver):
         rname = TCPIPSocket(**{'host_address': host_address,
                                'port': port,
                                'board': board})
-        return cls({'resource_name': str(rname), 'para': kwargs},
+        return cls({'resource_name': str(rname), 'para': kwargs,
+                    'backend': backend},
                    caching_allowed)
 
     @classmethod
@@ -654,7 +658,8 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         rname = GPIBInstr(board=board, address=address)
-        return cls({'resource_name': str(rname), 'para': kwargs},
+        return cls({'resource_name': str(rname),
+                    'para': kwargs, 'backend': backend},
                    caching_allowed)
 
     # --- Pyvisa wrappers -----------------------------------------------------
