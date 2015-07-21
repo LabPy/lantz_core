@@ -19,7 +19,7 @@ from future.utils import raise_with_traceback
 
 try:
     from pyvisa.highlevel import ResourceManager
-    from pyvisa.rname import (assemble_canonical_name,
+    from pyvisa.rname import (assemble_canonical_name, to_canonical_name,
                               ASRLInstr, GPIBInstr, TCPIPInstr, TCPIPSocket)
     from pyvisa import constants
     from pyvisa import errors
@@ -88,19 +88,16 @@ class BaseVisaDriver(BaseDriver):
     ----------
     connection_infos : dict
         For a VisaInstrument you must provide either:
-            - resource_name : the VISA id of your instrument. This should be
-                              this should be reserved to the case of VISA
-                              alias.
 
-        or at least :
-            - type : The kind of connection (GPIB, USB, PXI, ...).
-            - address : The address of the instrument.
+            - resource_name : the VISA id of your instrument.
 
-        In the second case other entries can be :
+        or arguments that PyVISA can use to build a resource name. Those depend
+        on the interface type (*interface_type* keyword), please see PyVisa
+        documentation for ore details.
+
+        You can also provide additional informations such as:
+
             - backend : the pyvisa backend to use ('@ni', '@sim', '@py')
-            - any specifications concerning the connection (those depends on
-              the type of connections, please see PyVisa documentation for
-              more details).
             - para : a dict to alter the driver attributes.
 
         If some values are not provided the framework will give them default
@@ -115,13 +112,15 @@ class BaseVisaDriver(BaseDriver):
     retries_exceptions = (TimeoutError, errors.VisaIOError)
 
     #: Protocols supported by the instrument.
+    #: For each type of interface a dictionary (or a list of dictionary),
+    #: specifying the default arguments to use should be provided.
     #: For example::
     #:
-    #:       {'USB': ['RAW', 'INSTR'],
-    #:        'TCPIP': '50000::SOCKET'}
-    #:
-    #: :type: dict[str, str | list]
-    PROTOCOLS = None
+    #:       {'USB': [{'resource_class': 'INSTR'},
+    #:                {'resource_class': 'RAW'}],
+    #:        'TCPIP': {'resource_class': 'SOCKET',
+    #:                  'port': '50000'}
+    PROTOCOLS = {}
 
     #: Default arguments passed to the Resource constructor on initialize.
     #: It should be specified in two layers, the first indicating the
@@ -134,8 +133,6 @@ class BaseVisaDriver(BaseDriver):
     #:        'USB':      {'read_termination': \r'},
     #:        'COMMON':   {'write_termination': '\n'}
     #:       }
-    #:
-    #: :type: dict[str, dict[str, str]]
     DEFAULTS = None
 
     def __init__(self, connection_infos, caching_allowed=True):
@@ -172,13 +169,40 @@ class BaseVisaDriver(BaseDriver):
 
         """
         if 'resource_name' not in connection_infos:
+            visa_infos = cls._get_visa_infos(connection_infos)
+            print(visa_infos)
             connection_infos['resource_name'] =\
-                assemble_canonical_name(**connection_infos)
+                assemble_canonical_name(**visa_infos)
+        else:
+            # Try to get a canonical name.
+            try:
+                connection_infos['resource_name'] =\
+                    to_canonical_name(**connection_infos)
+            except Exception:
+                # Fail silently to allow the use of VISA alias
+                pass
 
         return connection_infos['resource_name']
 
     @classmethod
-    def _get_defaults_kwargs(cls, instrument_type, resource_type,
+    def _get_visa_infos(cls, connection_infos):
+        """Filter out non-VISA related keywords and fill the gaps using
+        PROTOCOLS
+
+        """
+        interface_type = connection_infos['interface_type']
+        default_protocol = cls.PROTOCOLS.get(interface_type, {})
+        if not isinstance(default_protocol, dict):
+            default_protocol = default_protocol[0]
+
+        visa_infos = {k: v for k, v in connection_infos.items()
+                      if k not in ('para', 'backend')}
+
+        default_protocol.update(visa_infos)
+        return default_protocol
+
+    @classmethod
+    def _get_defaults_kwargs(cls, interface_type, resource_class,
                              user_kwargs):
         """Compute the default keyword arguments.
 
@@ -193,11 +217,11 @@ class BaseVisaDriver(BaseDriver):
 
         Parameters
         ----------
-        instrument_type : str, {'ASRL', 'USB', 'TCPIP', 'GPIB', 'PXI'}
-            Type of connection.
+        interface_type : str, {'ASRL', 'USB', 'TCPIP', 'GPIB', 'PXI'}
+            Type of interface.
 
-        resource_type : str, {'INSTR', 'SOCKET', 'RAW'}
-            Type of ressource.
+        resource_class : str, {'INSTR', 'SOCKET', 'RAW'}
+            Class of ressource.
 
         Returns
         -------
@@ -209,8 +233,8 @@ class BaseVisaDriver(BaseDriver):
 
             kwargs = {}
 
-            for key in ('COMMON', resource_type, instrument_type,
-                        (instrument_type, resource_type)):
+            for key in ('COMMON', resource_class, interface_type,
+                        (interface_type, resource_class)):
                 if key not in cls.DEFAULTS:
                     continue
                 value = cls.DEFAULTS[key]
