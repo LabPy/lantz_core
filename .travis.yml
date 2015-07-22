@@ -32,8 +32,8 @@ install:
   - if [ $PINT == 'Y' ]; then pip install https://github.com/hgrecco/pint/zipball/develop; fi
   # Use develop version of pyvisa-py pyvisa-sim
   - if [ $PYVISA == 'Y' ]; then pip install -q pyvisa; fi
-  - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-sim; fi
-  - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-py; fi
+  - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-sim/zipball/master; fi
+  - if [ $PYVISA == 'Y' ]; then pip install -q https://github.com/hgrecco/pyvisa-py/zipball/master; fi
   - pip install -q coveralls
 
 script:
