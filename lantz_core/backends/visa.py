@@ -11,6 +11,8 @@
 """
 from __future__ import (division, unicode_literals, print_function,
                         absolute_import)
+
+import os
 import logging
 from inspect import cleandoc
 from time import sleep
@@ -36,33 +38,41 @@ from ..errors import InterfaceNotSupported, TimeoutError
 _RESOURCE_MANAGERS = None
 
 
-def get_visa_resource_manager(backend='@ni'):
-    """Access the VISA ressource manager in use by Lantz.
+def get_visa_resource_manager(backend='default'):
+    """Access a VISA ressource manager in use by Lantz.
 
     """
     global _RESOURCE_MANAGERS
-    if not _RESOURCE_MANAGERS or backend not in _RESOURCE_MANAGERS:
+    if not _RESOURCE_MANAGERS:
+        _RESOURCE_MANAGERS = {}
+
+    if backend == 'default':
+        def_backend = os.environ.get('LANTZ_VISA', '@ni')
+        print(def_backend)
         mess = cleandoc('''Creating default Visa resource manager for Lantz
-            with backend {}.'''.format(backend))
+            with backend {}.'''.format(def_backend))
         logging.debug(mess)
-        if not _RESOURCE_MANAGERS:
-            _RESOURCE_MANAGERS = {backend: ResourceManager(backend)}
-        else:
-            _RESOURCE_MANAGERS[backend] = ResourceManager(backend)
+        _RESOURCE_MANAGERS[backend] = ResourceManager(def_backend)
+
+    elif '@' in backend:
+        _RESOURCE_MANAGERS[backend] = ResourceManager(backend)
 
     return _RESOURCE_MANAGERS[backend]
 
 
-def set_visa_resource_manager(rm, backend='@ni'):
-    """Set the VISA ressource manager in use by Lantz.
+def set_visa_resource_manager(rm, backend='default'):
+    """Set a VISA ressource manager in use by Lantz.
 
-    This operation can only be performed once, and should be performed
-    before any driver relying on the visa protocol is created.
+    This operation can only be performed once per backend id, and should be
+    performed before any driver relying on this backend is created..
 
     Parameters
     ----------
-    rm : RessourceManager
-        Instance to use as Lantz default resource manager.
+    rm : ResourceManager
+        Instance to use as Lantz resource manager.
+
+    backend : unicode
+        Id of the backend.
 
     """
     global _RESOURCE_MANAGERS
@@ -114,25 +124,24 @@ class BaseVisaDriver(BaseDriver):
 
     Parameters
     ----------
-    connection_infos : dict
-        For a VisaInstrument you must provide either:
+    resource_name : unicode, optional
+        Name of the visa resource. can be specified as positional argument.
 
-            - resource_name : the VISA id of your instrument.
+    backend : unicode, optional
+        The pyvisa backend to use. This can either be a backend alias declared
+        using set_visa_resource_manager or a valid string to create a pyvisa
+        resource maanger.
 
-        or arguments that PyVISA can use to build a resource name. Those depend
-        on the interface type (*interface_type* keyword), please see PyVisa
-        documentation for ore details.
-
-        You can also provide additional informations such as:
-
-            - backend : the pyvisa backend to use ('@ni', '@sim', '@py')
-            - para : a dict to alter the driver attributes.
-
-        If some values are not provided the framework will give them default
-        values to make sure that driver unicity is ensured.
+    parameters : dict, optionalm
+        A dict to alter the driver attributes.
 
     caching_allowed : bool, optional
         Boolean use to determine if instrument properties can be cached
+
+    kwargs :
+        Arguments that PyVISA can use to build a resource name. Those depend
+        on the interface type (*interface_type* keyword), please see PyVisa
+        documentation for ore details.
 
     """
     #: Exceptions triggering a new communication attempts for Features with a
@@ -163,14 +172,14 @@ class BaseVisaDriver(BaseDriver):
     #:       }
     DEFAULTS = None
 
-    def __init__(self, connection_infos, caching_allowed=True):
-        super(BaseVisaDriver, self).__init__(connection_infos, caching_allowed)
+    def __init__(self, *args, **kwargs):
+        super(BaseVisaDriver, self).__init__(*args, **kwargs)
 
         # This entry is populated by the compute_id class method (called by the
         # the metaclass) from the provided informations.
-        r_name = connection_infos['resource_name']
+        r_name = kwargs['resource_name']
 
-        rm = get_visa_resource_manager(connection_infos.get('backend', '@ni'))
+        rm = get_visa_resource_manager(kwargs.get('backend', 'default'))
         self._resource_manager = rm
 
         # Does not work with Visa alias
@@ -179,10 +188,10 @@ class BaseVisaDriver(BaseDriver):
             #: Keyword arguments passed to the resource during initialization.
             kw = self._get_defaults_kwargs(r_info.interface_type.name.upper(),
                                            r_info.resource_class,
-                                           connection_infos.get('para', {}))
+                                           kwargs.get('parameters', {}))
             self.resource_kwargs = kw
         except ValueError:
-            self.resource_kwargs = connection_infos.get('para', {})
+            self.resource_kwargs = kwargs.get('parameters', {})
 
         #: The resource name
         self.resource_name = r_name
@@ -191,25 +200,30 @@ class BaseVisaDriver(BaseDriver):
         self._resource = None
 
     @classmethod
-    def compute_id(cls, connection_infos):
+    def compute_id(cls, args, kwargs):
         """Assemble the resource name from the provided infos.
 
         """
-        if 'resource_name' not in connection_infos:
-            visa_infos = cls._get_visa_infos(connection_infos)
-            print(visa_infos)
-            connection_infos['resource_name'] =\
-                assemble_canonical_name(**visa_infos)
-        else:
-            # Try to get a canonical name.
+        rname = None
+        if args:
+            msg = 'A single positional argument is allowed for %s' % cls
+            assert len(args) == 1, msg
+            rname = args[0]
+        elif 'resource_name' in kwargs:
+            rname = kwargs['resource_name']
+
+        if rname:
             try:
-                connection_infos['resource_name'] =\
-                    to_canonical_name(connection_infos['resource_name'])
+                kwargs['resource_name'] = to_canonical_name(rname)
             except Exception:  # TODO Use a more adequate exception
                 # Fail silently to allow the use of VISA alias
-                pass
+                kwargs['resource_name'] = rname
+        else:
+            visa_infos = cls._get_visa_infos(kwargs)
+            kwargs['resource_name'] =\
+                assemble_canonical_name(**visa_infos)
 
-        return connection_infos['resource_name']
+        return kwargs['resource_name']
 
     @classmethod
     def _get_visa_infos(cls, connection_infos):
@@ -223,7 +237,7 @@ class BaseVisaDriver(BaseDriver):
             default_protocol = default_protocol[0]
 
         visa_infos = {k: v for k, v in connection_infos.items()
-                      if k not in ('para', 'backend')}
+                      if k not in ('parameters', 'backend')}
 
         default_protocol.update(visa_infos)
         return default_protocol
@@ -397,7 +411,7 @@ class VisaMessageDriver(BaseVisaDriver):
     @classmethod
     def _via_usb(cls, resource_type='INSTR', serial_number=None,
                  manufacturer_id=None, model_code=None, board=0,
-                 backend='@ni', caching_allowed=True, **kwargs):
+                 backend='default', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying USB resource.
 
         A connected USBTMC instrument with the specified serial_number,
@@ -423,7 +437,7 @@ class VisaMessageDriver(BaseVisaDriver):
             The unique identification number of the product.
         board: int
             USB Board to use.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -471,13 +485,12 @@ class VisaMessageDriver(BaseVisaDriver):
                            the serial number''')
             raise ValueError(msg.format(len(resource_names), query))
 
-        return cls({'resource_name': resource_names[0], 'para': kwargs,
-                    'backend': backend},
-                   caching_allowed)
+        return cls(resource_names[0], parameters=kwargs,
+                   backend=backend, caching_allowed=caching_allowed)
 
     @classmethod
     def via_usb(cls, serial_number=None, manufacturer_id=None,
-                model_code=None, board=0, backend='@ni',
+                model_code=None, board=0, backend='default',
                 caching_allowed=True, **kwargs):
         """Return a Driver with an underlying USB Instrument resource.
 
@@ -504,7 +517,7 @@ class VisaMessageDriver(BaseVisaDriver):
             The unique identification number of the product.
         board: int
             USB Board to use.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -523,7 +536,7 @@ class VisaMessageDriver(BaseVisaDriver):
 
     @classmethod
     def via_usb_raw(cls, serial_number=None, manufacturer_id=None,
-                    model_code=None, board=0, backend='@ni',
+                    model_code=None, board=0, backend='default',
                     caching_allowed=True,  **kwargs):
         """Return a Driver with an underlying USB RAW resource.
 
@@ -537,7 +550,7 @@ class VisaMessageDriver(BaseVisaDriver):
             The unique identification number of the product.
         board: int
             USB Board to use.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -554,14 +567,15 @@ class VisaMessageDriver(BaseVisaDriver):
                             board, backend, caching_allowed, **kwargs)
 
     @classmethod
-    def via_serial(cls, board, backend='@ni', caching_allowed=True, **kwargs):
+    def via_serial(cls, board, backend='default', caching_allowed=True,
+                   **kwargs):
         """Return a Driver with an underlying ASRL (Serial) Instrument resource.
 
         Parameters
         ----------
         port: int
             The serial port to which the instrument is connected.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -574,13 +588,12 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         resource_name = ASRLInstr(board=board)
-        return cls({'resource_name': str(resource_name), 'para': kwargs,
-                    'backend': backend},
-                   caching_allowed)
+        return cls(str(resource_name), parameters=kwargs, backend=backend,
+                   caching_allowed=caching_allowed)
 
     @classmethod
     def via_tcpip(cls, host_address, lan_device_name='inst0', board=0,
-                  backend='@ni', caching_allowed=True, **kwargs):
+                  backend='default', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying TCP Instrument resource.
 
         Parameters
@@ -591,7 +604,7 @@ class VisaMessageDriver(BaseVisaDriver):
             Name of the instrument....
         board: int, optional
             The board number.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -606,13 +619,12 @@ class VisaMessageDriver(BaseVisaDriver):
         rname = TCPIPInstr(**{'host_address': host_address,
                               'lan_device_name': lan_device_name,
                               'board': board})
-        return cls({'resource_name': str(rname), 'para': kwargs,
-                    'backend': backend},
-                   caching_allowed)
+        return cls(str(rname), parameters=kwargs, backend=backend,
+                   caching_allowed=caching_allowed)
 
     @classmethod
     def via_tcpip_socket(cls, host_address, port, board=0,
-                         backend='@ni', caching_allowed=True, **kwargs):
+                         backend='default', caching_allowed=True, **kwargs):
         """Return a Driver with an underlying TCP Socket resource.
 
         Parameters
@@ -625,7 +637,7 @@ class VisaMessageDriver(BaseVisaDriver):
             The port of the instrument.
         board: int, optional
             The board number.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -640,12 +652,12 @@ class VisaMessageDriver(BaseVisaDriver):
         rname = TCPIPSocket(**{'host_address': host_address,
                                'port': port,
                                'board': board})
-        return cls({'resource_name': str(rname), 'para': kwargs,
-                    'backend': backend},
-                   caching_allowed)
+        return cls(str(rname), parameters=kwargs, backend=backend,
+                   caching_allowed=caching_allowed)
 
     @classmethod
-    def via_gpib(cls, address, board=0, backend='@ni', caching_allowed=True,
+    def via_gpib(cls, address, board=0, backend='default',
+                 caching_allowed=True,
                  **kwargs):
         """Return a Driver with an underlying GPIB Instrument resource.
 
@@ -655,7 +667,7 @@ class VisaMessageDriver(BaseVisaDriver):
              The gpib address of the instrument.
         board : int, optional
             Number of the GPIB board.
-        backend : {'@ni', '@sim', '@py'}
+        backend :
             PyVISA backend to use.
         caching_allowed : bool
             Whether or not to allow caching for this specific driver instance.
@@ -668,9 +680,8 @@ class VisaMessageDriver(BaseVisaDriver):
 
         """
         rname = GPIBInstr(board=board, primary_address=address)
-        return cls({'resource_name': str(rname),
-                    'para': kwargs, 'backend': backend},
-                   caching_allowed)
+        return cls(str(rname), parameters=kwargs, backend=backend,
+                   caching_allowed=caching_allowed)
 
     # --- Pyvisa wrappers -----------------------------------------------------
 

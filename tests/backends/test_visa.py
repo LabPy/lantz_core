@@ -37,19 +37,21 @@ base_backend = os.path.join(os.path.dirname(__file__), 'base.yaml@sim')
 
 @pytest.yield_fixture
 def cleanup():
+    os.environ['LANTZ_VISA'] = '@py'
     yield
     import lantz_core.backends.visa as lv
     lv._RESOURCE_MANAGERS = None
+    del os.environ['LANTZ_VISA']
 
 
 def test_get_visa_resource_manager(cleanup):
 
-    rm = get_visa_resource_manager('@py')
+    rm = get_visa_resource_manager()
     assert rm is get_visa_resource_manager('@py')
 
     assert rm is not get_visa_resource_manager('@sim')
     import lantz_core.backends.visa as lv
-    assert len(lv._RESOURCE_MANAGERS) == 2
+    assert len(lv._RESOURCE_MANAGERS) == 3
 
 
 def test_set_visa_resource_manager(cleanup):
@@ -73,9 +75,9 @@ def visa_driver():
     """Fixture returning a basic visa driver.
 
     """
-    return BaseVisaDriver({'interface_type': 'TCPIP',
-                           'host_address': '192.168.0.100',
-                           'backend': base_backend})
+    return BaseVisaDriver(**{'interface_type': 'TCPIP',
+                             'host_address': '192.168.0.100',
+                             'backend': base_backend})
 
 
 class TestBaseVisaDriver(object):
@@ -85,8 +87,8 @@ class TestBaseVisaDriver(object):
 
         """
         rname = 'TCPIP::192.168.0.100::INSTR'
-        driver2 = BaseVisaDriver({'resource_name': rname,
-                                  'backend': base_backend})
+        driver2 = BaseVisaDriver(**{'resource_name': rname,
+                                    'backend': base_backend})
         assert visa_driver.resource_name == driver2.resource_name
         assert visa_driver is driver2
 
@@ -95,8 +97,7 @@ class TestBaseVisaDriver(object):
 
         """
         rname = 'visa_alias'
-        driver = BaseVisaDriver({'resource_name': rname,
-                                 'backend': base_backend})
+        driver = BaseVisaDriver(rname, backend=base_backend)
         assert driver.resource_name == 'visa_alias'
 
     def test_filling_infos_from_PROTOCOLS(self):
@@ -109,13 +110,13 @@ class TestBaseVisaDriver(object):
             PROTOCOLS = {'TCPIP': {'resource_class': 'SOCKET',
                                    'port': 5025}}
 
-        driver = TestVisaDriver({'interface_type': 'TCPIP',
-                                 'host_address': '192.168.0.100',
-                                 'backend': base_backend})
+        driver = TestVisaDriver(**{'interface_type': 'TCPIP',
+                                   'host_address': '192.168.0.100',
+                                   'backend': base_backend})
 
         rname = 'TCPIP::192.168.0.100::5025::SOCKET'
-        driver2 = TestVisaDriver({'resource_name': rname,
-                                  'backend': base_backend})
+        driver2 = TestVisaDriver(**{'resource_name': rname,
+                                    'backend': base_backend})
 
         assert driver.resource_name == driver2.resource_name
         assert driver is driver2
@@ -125,13 +126,13 @@ class TestBaseVisaDriver(object):
                                               {'resource_class': 'SOCKET',
                                                'port': 5025}]}
 
-        driver = TestVisaDriver({'interface_type': 'TCPIP',
-                                 'host_address': '192.168.0.100',
-                                 'backend': base_backend})
+        driver = TestVisaDriver(**{'interface_type': 'TCPIP',
+                                   'host_address': '192.168.0.100',
+                                   'backend': base_backend})
 
         rname = 'TCPIP::192.168.0.100::inst1::INSTR'
-        driver2 = TestVisaDriver({'resource_name': rname,
-                                  'backend': base_backend})
+        driver2 = TestVisaDriver(**{'resource_name': rname,
+                                    'backend': base_backend})
 
         assert driver.resource_name == driver2.resource_name
         assert driver is driver2
@@ -146,10 +147,10 @@ class TestBaseVisaDriver(object):
                         'COMMON': {'write_termination': '\n',
                                    'timeout': 10}}
 
-        driver = TestDefaultVisa({'interface_type': 'TCPIP',
-                                  'host_address': '192.168.0.1',
-                                  'backend': base_backend,
-                                  'para': {'timeout': 5}})
+        driver = TestDefaultVisa(**{'interface_type': 'TCPIP',
+                                    'host_address': '192.168.0.1',
+                                    'backend': base_backend,
+                                    'parameters': {'timeout': 5}})
 
         assert driver.resource_kwargs == {'read_termination': '\n',
                                           'write_termination': '\n',
@@ -166,10 +167,10 @@ class TestBaseVisaDriver(object):
                                    'timeout': 10}}
 
         with pytest.raises(InterfaceNotSupported):
-            TestDefaultVisa({'interface_type': 'TCPIP',
-                             'host_address': '192.168.0.1',
-                             'backend': base_backend,
-                             'para': {'timeout': 5}})
+            TestDefaultVisa(**{'interface_type': 'TCPIP',
+                               'host_address': '192.168.0.1',
+                               'backend': base_backend,
+                               'parameters': {'timeout': 5}})
 
     def test_clear(self, visa_driver):
         """Test clearing an instrument.
@@ -323,19 +324,19 @@ class TestVisaMessageDriver(object):
     def test_status_byte(self):
         pass
 
-    def test_write_raw(self):
-
-        with pytest.raises(NotImplementedError):
-            self.driver.write_raw('')
-
-    def test_write(self):
-        with pytest.raises(NotImplementedError):
-            self.driver.write('')
-
-    def test_write_ascii_values(self):
-
-        with pytest.raises(NotImplementedError):
-            self.driver.write_ascii_values('VAL', range(10), 'f', ',')
+#    def test_write_raw(self):
+#
+#        with pytest.raises(NotImplementedError):
+#            self.driver.write_raw('')
+#
+#    def test_write(self):
+#        with pytest.raises(NotImplementedError):
+#            self.driver.write('')
+#
+#    def test_write_ascii_values(self):
+#
+#        with pytest.raises(NotImplementedError):
+#            self.driver.write_ascii_values('VAL', range(10), 'f', ',')
 
     def test_write_binary_values(self):
 
