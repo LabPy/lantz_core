@@ -46,16 +46,18 @@ def get_visa_resource_manager(backend='default'):
     if not _RESOURCE_MANAGERS:
         _RESOURCE_MANAGERS = {}
 
-    if backend == 'default':
-        def_backend = os.environ.get('LANTZ_VISA', '@ni')
-        print(def_backend)
-        mess = cleandoc('''Creating default Visa resource manager for Lantz
-            with backend {}.'''.format(def_backend))
-        logging.debug(mess)
-        _RESOURCE_MANAGERS[backend] = ResourceManager(def_backend)
+    if backend not in _RESOURCE_MANAGERS:
 
-    elif '@' in backend:
-        _RESOURCE_MANAGERS[backend] = ResourceManager(backend)
+        if backend == 'default':
+            def_backend = os.environ.get('LANTZ_VISA', '@ni')
+            print(def_backend)
+            mess = cleandoc('''Creating default Visa resource manager for Lantz
+                with backend {}.'''.format(def_backend))
+            logging.debug(mess)
+            _RESOURCE_MANAGERS[backend] = ResourceManager(def_backend)
+
+        elif '@' in backend:
+            _RESOURCE_MANAGERS[backend] = ResourceManager(backend)
 
     return _RESOURCE_MANAGERS[backend]
 

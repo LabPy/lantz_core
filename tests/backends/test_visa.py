@@ -48,6 +48,9 @@ def test_get_visa_resource_manager(cleanup):
 
     rm = get_visa_resource_manager()
     assert rm is get_visa_resource_manager('@py')
+    # Make sure we do not override existing RMs
+    os.environ['LANTZ_VISA'] = '@sim'
+    assert rm is get_visa_resource_manager()
 
     assert rm is not get_visa_resource_manager('@sim')
     import lantz_core.backends.visa as lv
