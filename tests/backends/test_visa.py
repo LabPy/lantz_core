@@ -172,6 +172,17 @@ class TestBaseVisaDriver(object):
                                'backend': base_backend,
                                'parameters': {'timeout': 5}})
 
+    def test_filtering_kwargs(self):
+        """
+        """
+        class SpecialKwargsVisa(BaseVisaDriver):
+
+            NON_VISA_NAMES = ('parameters', 'backend', 'my_own')
+
+        rname = 'visa_alias'
+        driver = BaseVisaDriver(rname, backend=base_backend, my_own=1)
+        assert driver.resource_name == 'visa_alias'
+
     def test_clear(self, visa_driver):
         """Test clearing an instrument.
 

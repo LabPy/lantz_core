@@ -172,6 +172,10 @@ class BaseVisaDriver(BaseDriver):
     #:       }
     DEFAULTS = None
 
+    #: Tuple of keywords unrelated to Visa resource name. Used to remove them
+    #: from the kwargs when building the resource name.
+    NON_VISA_NAMES = ('parameters', 'backend')
+
     def __init__(self, *args, **kwargs):
         super(BaseVisaDriver, self).__init__(*args, **kwargs)
 
@@ -237,7 +241,7 @@ class BaseVisaDriver(BaseDriver):
             default_protocol = default_protocol[0]
 
         visa_infos = {k: v for k, v in connection_infos.items()
-                      if k not in ('parameters', 'backend')}
+                      if k not in cls.NON_VISA_NAMES}
 
         default_protocol.update(visa_infos)
         return default_protocol
