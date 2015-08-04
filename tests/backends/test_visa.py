@@ -267,24 +267,59 @@ class TestVisaMessage(VisaMessageDriver):
     MODEL_CODE = '0x39'
 
 
+class TestVisaMessage2(VisaMessageDriver):
+
+    MANUFACTURER_ID = '0xB21'
+
+    MODEL_CODE = '0x39'
+
+
 class TestVisaMessageDriver(object):
 
-# TODO need support for query in list_resources for @sim backend
-#    def test_via_usb_instr(self):
-#
-#        driver = TestVisaMessage.via_usb('90N326143',
-#                                          backend=base_backend)
-#        assert driver.resource_name ==\
-#            to_canonical_name('USB::0xB21::0x39::90N326143::INSTR')
-#        driver.initialize()
+    def test_via_usb_instr(self):
 
-#    def test_via_usb_raw(self):
-#
-#        driver = TestVisaMessage.via_usb_raw('90N326143',
-#                                             backend=base_backend)
-#        assert driver.resource_name ==\
-#            to_canonical_name('USB::0xB21::0x39::90N326143::RAW')
-#        driver.initialize()
+        driver = TestVisaMessage.via_usb('90N326143',
+                                         backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('USB::0xB21::0x39::90N326143::INSTR')
+        driver.initialize()
+
+    def test_via_usb_instr_no_serial(self):
+
+        driver = TestVisaMessage.via_usb(backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('USB::0xB21::0x39::90N326143::INSTR')
+        driver.initialize()
+
+    def test_via_usb_instr_multiple_models(self):
+
+        with pytest.raises(ValueError):
+            TestVisaMessage.via_usb(model_code=('0x39', '0x40'),
+                                    backend=base_backend)
+
+        with pytest.raises(ValueError):
+            TestVisaMessage.via_usb(model_code=('0x50',),
+                                    backend=base_backend)
+
+        driver = TestVisaMessage.via_usb('90N326143',
+                                         model_code=('0x39', '0x40'),
+                                         backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('USB::0xB21::0x39::90N326143::INSTR')
+        driver.initialize()
+
+    def test_via_usb_raw(self):
+
+        driver = TestVisaMessage2.via_usb_raw('90N326145',
+                                              backend=base_backend)
+        assert driver.resource_name ==\
+            to_canonical_name('USB::0xB21::0x39::90N326145::RAW')
+        driver.initialize()
+
+    def test_via_usb_raw_no_instr(self):
+
+        with pytest.raises(ValueError):
+            TestVisaMessage2.via_usb_raw('90N326146', backend=base_backend)
 
     def test_via_tcpip_instr(self):
 

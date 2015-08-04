@@ -189,15 +189,19 @@ class BaseVisaDriver(BaseDriver):
         self._resource_manager = rm
 
         # Does not work with Visa alias
-        try:
-            r_info = self._resource_manager.resource_info(r_name)
+        r_info = self._resource_manager.resource_info(r_name)
+        if r_info:
             #: Keyword arguments passed to the resource during initialization.
             kw = self._get_defaults_kwargs(r_info.interface_type.name.upper(),
                                            r_info.resource_class,
                                            kwargs.get('parameters', {}))
             self.resource_kwargs = kw
-        except ValueError:
-            self.resource_kwargs = kwargs.get('parameters', {})
+        else:
+            # Allow to at least get the COMMON parameters.
+            kw = self._get_defaults_kwargs(None,
+                                           None,
+                                           kwargs.get('parameters', {}))
+            self.resource_kwargs = kw
 
         #: The resource name
         self.resource_name = r_name
@@ -264,10 +268,10 @@ class BaseVisaDriver(BaseDriver):
 
         Parameters
         ----------
-        interface_type : str, {'ASRL', 'USB', 'TCPIP', 'GPIB', 'PXI'}
+        interface_type : str|None, {'ASRL', 'USB', 'TCPIP', 'GPIB', 'PXI'}
             Type of interface.
 
-        resource_class : str, {'INSTR', 'SOCKET', 'RAW'}
+        resource_class : str|None, {'INSTR', 'SOCKET', 'RAW'}
             Class of ressource.
 
         Returns
@@ -465,26 +469,27 @@ class VisaMessageDriver(BaseVisaDriver):
         else:
             _models = None
 
-        query = 'USB{}::{}::{}::{}::{}'.format(board, manufacturer_id or '?*',
-                                               model_code or '?*',
-                                               serial_number or '?*',
-                                               resource_type)
+        query = 'USB{}::{}::{}::{}::?*::{}'.format(board,
+                                                   manufacturer_id or '?*',
+                                                   model_code or '?*',
+                                                   serial_number or '?*',
+                                                   resource_type)
 
         rm = get_visa_resource_manager(backend)
         try:
             resource_names = rm.list_resources(query)
-            print(resource_names)
-        except:
-            raise ValueError('No USBTMC devices found for {}.'.format(query))
+        except errors.VisaIOError:
+            msg = 'No USBTMC devices found for {}.'.format(query)
+            raise_with_traceback(ValueError(msg))
 
         if _models:
             # There are more than 1 model compatible with
             resource_names = [r for r in resource_names
                               if r.split('::')[2] in _models]
 
-            if not resource_names:
-                msg = 'No USBTMC devices found for {} with model in {}'
-                raise ValueError(msg.format(query, _models))
+        if not resource_names:
+            msg = 'No USBTMC devices found for {} with model in {}'
+            raise ValueError(msg.format(query, _models))
 
         if len(resource_names) > 1:
             msg = cleandoc('''{} USBTMC devices found for {}. Please specify

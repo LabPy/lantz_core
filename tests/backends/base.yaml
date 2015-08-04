@@ -93,7 +93,9 @@ resources:
     device: device 1
   GPIB::1::INSTR:
     device: device 1
-  USB::0xB21::0x39::90326143::INSTR:
+  'USB::0xB21::0x39::90N326143::INSTR':
     device: device 1
-#  USB::0xB21::0x39::90326143::RAW:
-#    device: device 1
+  'USB::0xB21::0x40::90N326144::INSTR':
+    device: device 1
+  'USB::0xB21::0x39::90N326145::RAW':
+    device: device 1
