@@ -27,17 +27,16 @@ class InstrumentSigleton(HasFeaturesMeta):
 
     _instances_cache = {}
 
-    def __call__(self, connection_infos, caching_allowed=True):
+    def __call__(self, *args, **kwargs):
         # This is done on first call rather than init to avoid useless memory
         # allocation.
         if self not in self._instances_cache:
             self._instances_cache[self] = WeakValueDictionary()
 
         cache = self._instances_cache[self]
-        driver_id = self.compute_id(connection_infos)
+        driver_id = self.compute_id(args, kwargs)
         if driver_id not in cache:
-            dr = super(InstrumentSigleton, self).__call__(connection_infos,
-                                                          caching_allowed)
+            dr = super(InstrumentSigleton, self).__call__(*args, **kwargs)
 
             cache[driver_id] = dr
         else:
@@ -74,24 +73,27 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
     """
     secure_com_except = (TimeoutError)
 
-    def __init__(self, connection_infos, caching_allowed=True):
-        super(BaseDriver, self).__init__(caching_allowed)
+    def __init__(self, *args, **kwargs):
+        super(BaseDriver, self).__init__(kwargs.get('caching_allowed', True))
 
         self.owner = ''
         self.newly_created = True
         self.lock = RLock()
 
     @classmethod
-    def compute_id(cls, connection_infos):
-        """Use the connection infos to compute a unique id for the instrument.
+    def compute_id(cls, args, kwargs):
+        """Use the arguments to compute a unique id for the instrument.
 
-        This can also be used to alter the content of the connection_info
-        dictionary.
+        This can also be used to alter the content of the kwargs dictionary.
+        This is why we do not unpack it.
 
         Parameters
         ----------
-        connection_infos : dict
-            Connection parameters as passed to the constructor.
+        args :
+            Positional arguments passed to the constructor
+
+        kwargs :
+            Keyword arguments passed to the constructor.
 
         Returns
         -------
@@ -99,7 +101,8 @@ class BaseDriver(with_metaclass(InstrumentSigleton, HasFeatures)):
             Unique id identifying the instrument this driver is connected to.
 
         """
-        return frozenset(connection_infos.items())
+        assert not args, 'Cannot use positional arguments for %s' % cls
+        return frozenset(kwargs.items())
 
     def initialize(self):
         """Open a connection to an instrument.

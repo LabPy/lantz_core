@@ -428,7 +428,6 @@ class Feature(property):
         """
         # Loop on methods which are affected by mofifiers.
         for meth_name, modifiers in feat._customs.items():
-            print(meth_name)
             if isinstance(modifiers, MethodType):
                     self.modify_behavior(meth_name, modifiers)
                     continue
