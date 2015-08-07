@@ -757,24 +757,28 @@ class VisaMessageDriver(BaseVisaDriver):
         """See Pyvisa docs.
 
         """
-        return self._resource.query(message, delay)
+        with self.lock:
+            return self._resource.query(message, delay)
 
     def query_ascii_values(self, message, converter='f', separator=',',
                            container=list, delay=None):
         """See Pyvisa docs.
 
         """
-        return self._resource.query_ascii_values(message, converter, separator,
-                                                 container, delay)
+        with self.lock:
+            return self._resource.query_ascii_values(message, converter,
+                                                     separator, container,
+                                                     delay)
 
     def query_binary_values(self, message, datatype='f', is_big_endian=False,
                             container=list, delay=None, header_fmt='ieee'):
         """See Pyvisa docs.
 
         """
-        return self._resource.query_binary_values(message, datatype,
-                                                  is_big_endian, container,
-                                                  delay, header_fmt)
+        with self.lock:
+            return self._resource.query_binary_values(message, datatype,
+                                                      is_big_endian, container,
+                                                      delay, header_fmt)
 
     @Action()
     def assert_trigger(self):
